@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"os"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,6 +23,21 @@ func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) {
 		log.Fatalf("err getting data", err)
 	}
 	fmt.Println("Got pairs", len(pairs))
+
+	unipairs := make([]common.Address, len(pairs))
+	for key := range pairs {
+		unipairs = append(unipairs, pairs[key][2])
+	}
+
+	fmt.Println("unipairs", unipairs)
+	res, err := query.GetReservesByPairs(&bind.CallOpts{}, unipairs)
+
+	if err != nil {
+		fmt.Println("err getting reserves", err)
+	}
+
+	fmt.Println(res)
+
 }
 
 
@@ -31,7 +47,7 @@ func main() {
 
 	// create client
 	// rpcClient := services.InitRPCClient()
-	conn, err := ethclient.Dial("/home/mithril/.ethereum/geth.ipc")
+	conn, err := ethclient.Dial(os.Getenv("GETH_IPC_URL"))
 
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
