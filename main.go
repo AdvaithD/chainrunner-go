@@ -15,13 +15,13 @@ import (
 
 // get uniswap pairs to bootstrap reserves data
 func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) {
-	defer util.Duration(util.Track("getUniswapPairs - 100k"))
+	defer util.Duration(util.Track("getUniswapPairs - 00k"))
 	factory := common.HexToAddress("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")
-	pairs, err := query.GetPairsByIndexRange(&bind.CallOpts{}, factory, big.NewInt(0), big.NewInt(100000))
+	pairs, err := query.GetPairsByIndexRange(&bind.CallOpts{}, factory, big.NewInt(0), big.NewInt(10000))
 	if err != nil {
-		log.Fatalf("err getting data")
+		log.Fatalf("err getting data", err)
 	}
-	fmt.Println("Got pairs", len(pairs), pairs)
+	fmt.Println("Got pairs", len(pairs))
 }
 
 
@@ -29,11 +29,9 @@ func main() {
 	// init .env into program context
 	godotenv.Load(".env")
 
-	// string client = flag.String("client", "xxx", "Gateway to the bsc protocol. Available options:\n\t-bsc_testnet\n\t-bsc\n\t-geth_http\n\t-geth_ipc")
-
 	// create client
 	// rpcClient := services.InitRPCClient()
-	conn, err := ethclient.Dial("ws://157.90.35.22:8545")
+	conn, err := ethclient.Dial("/home/mithril/.ethereum/geth.ipc")
 
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
