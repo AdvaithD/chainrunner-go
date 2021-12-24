@@ -15,5 +15,5 @@ func Track(msg string) (string, time.Time) {
 }
 
 func Duration(msg string, start time.Time) {
-    log.Printf("%v: %v\n", msg, time.Since(start))
+    log.Printf("%v ---- %v\n", msg, time.Since(start))
 }
