@@ -1,7 +1,7 @@
 package main
 
 import (
-	"chainrunner/lvldb"
+	"chainrunner/services"
 	"chainrunner/uniquery"
 	"chainrunner/util"
 	"fmt"
@@ -10,10 +10,34 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-etherum/common"
 	"github.com/joho/godotenv"
 )
+
+func levldb() {
+	db, err := services.NewLvlDB("/home/mithril/.mev/db/chainrunner-test")
+
+	if err != nil {
+		log.Fatalf("Error initializing db", err)
+	}
+
+	defer util.Duration(util.Track("setKey"))
+	err = db.SetByKey([]byte("hello"), []byte("world"))
+
+	if err != nil {
+		log.Fatalf("error setting db", err)
+	}
+
+	defer util.Duration(util.Track("getKey"))
+	data, err := db.GetByKey([]byte("hello"))
+
+	if err != nil {
+		log.Fatalf("error setting db", err)
+	}
+
+	fmt.Printf("data: %v", string(data))
+}
 
 // get uniswap pairs to bootstrap reserves data
 func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, [][3]common.Address) {
@@ -56,7 +80,7 @@ func main() {
 
 	// create client
 	// rpcClient := services.InitRPCClient()
-	conn, err := ethclient.Dial(os.Getenv("GETH_IPC_PATH"))
+	conn, err := ethclient.Dial(os.Getenv("INFURA_WS_URL"))
 
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
@@ -79,26 +103,5 @@ func main() {
 
 	fmt.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
 
-	db, err := lvldb.NewLvlDB("chainrunner-db")
-
-	if err != nil {
-		log.Fatalf("Error initializing db", err)
-	}
-
-	defer util.Duration(util.Track("setKey"))
-	err = db.SetByKey([]byte("hello"), []byte("world"))
-
-	if err != nil {
-		log.Fatalf("error setting db", err)
-	}
-
-	defer util.Duration(util.Track("getKey"))
-	data, err := db.GetByKey([]byte("hello"))
-
-	if err != nil {
-		log.Fatalf("error setting db", err)
-	}
-
-	fmt.Printf("data: %v", string(data))
 
 }
