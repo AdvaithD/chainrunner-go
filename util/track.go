@@ -1,8 +1,9 @@
 package util
 
 import (
-	"log"
 	"time"
+
+	logger "github.com/sirupsen/logrus"
 )
 
 // Track function execution time
@@ -15,5 +16,5 @@ func Track(msg string) (string, time.Time) {
 }
 
 func Duration(msg string, start time.Time) {
-    log.Printf("%v ---- %v\n", msg, time.Since(start))
+    logger.Printf("%v ---- %v\n", msg, time.Since(start))
 }

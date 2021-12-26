@@ -1,43 +1,21 @@
 package main
 
 import (
-	"chainrunner/services"
-	"chainrunner/uniquery"
+	"chainrunner/bindings/uniquery"
+	"chainrunner/memory"
 	"chainrunner/util"
 	"fmt"
 	"log"
 	"math/big"
 	"os"
 
+	logger "github.com/sirupsen/logrus"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-etherum/common"
 	"github.com/joho/godotenv"
 )
-
-func levldb() {
-	db, err := services.NewLvlDB("/home/mithril/.mev/db/chainrunner-test")
-
-	if err != nil {
-		log.Fatalf("Error initializing db", err)
-	}
-
-	defer util.Duration(util.Track("setKey"))
-	err = db.SetByKey([]byte("hello"), []byte("world"))
-
-	if err != nil {
-		log.Fatalf("error setting db", err)
-	}
-
-	defer util.Duration(util.Track("getKey"))
-	data, err := db.GetByKey([]byte("hello"))
-
-	if err != nil {
-		log.Fatalf("error setting db", err)
-	}
-
-	fmt.Printf("data: %v", string(data))
-}
 
 // get uniswap pairs to bootstrap reserves data
 func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, [][3]common.Address) {
@@ -52,7 +30,7 @@ func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, [][3
 	if err != nil {
 		log.Fatalf("err getting data", err)
 	}
-	fmt.Printf("Got %v pairs \n", len(pairs))
+	logger.Printf("Got %v pairs \n", len(pairs))
 
 	unipairs := make([]common.Address, 0)
 
@@ -66,7 +44,7 @@ func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, [][3
 	res, err := query.GetReservesByPairs(&bind.CallOpts{Context: nil}, unipairs)
 
 	if err != nil {
-		fmt.Println("err getting reserves", err)
+		logger.Error("err getting reserves", err)
 	}
 
 	// fmt.Printf("%V \n", res)
@@ -78,8 +56,10 @@ func main() {
 	// init .env into program context
 	godotenv.Load(".env")
 
+	database := memory.NewUniswapV2()
 	// create client
 	// rpcClient := services.InitRPCClient()
+	
 	conn, err := ethclient.Dial(os.Getenv("INFURA_WS_URL"))
 
 	if err != nil {
@@ -88,12 +68,9 @@ func main() {
 
 	// address where multicall contract is located
 	uniqueryAddr := common.HexToAddress("0x5EF1009b9FCD4fec3094a5564047e190D72Bd511")
-	// uniswap factory address
-	// uniFactoryAddr := "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
 
 	// query the contract
 	uniquery, err := uniquery.NewFlashBotsUniswapQuery(uniqueryAddr, conn)
-
 	if err != nil {
 		fmt.Println("error initiating contract to query mass")
 	}
@@ -101,7 +78,14 @@ func main() {
 	// [reserv0, reserve1, blockTimestampLast]
 	reserves, pairs := getUniswapPairs(uniquery)
 
-	fmt.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
+	logger.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
+	logger.Printf("reserves: %T  pairs: %T \n", reserves, pairs)
 
+	// loop over pairs
+	for index, pair := range pairs {
+		// logger.Printf("%v | %v | %T", index, , val)
 
+		database.CreatePair(pair[0], pair[1], pair[2], reserves[index][0], reserves[index][1])
+	}
+	logger.Info("Finished writing to db")
 }
