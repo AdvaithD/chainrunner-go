@@ -60,7 +60,7 @@ func main() {
 	// create client
 	// rpcClient := services.InitRPCClient()
 	
-	conn, err := ethclient.Dial(os.Getenv("INFURA_WS_URL"))
+	conn, err := ethclient.Dial(os.Getenv("GETH_IPC_PATH"))
 
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
@@ -84,8 +84,30 @@ func main() {
 	// loop over pairs
 	for index, pair := range pairs {
 		// logger.Printf("%v | %v | %T", index, , val)
-
+		// logger.Printf("%v %v %v \n", pair[0], pair[1], pair[2])
 		database.CreatePair(pair[0], pair[1], pair[2], reserves[index][0], reserves[index][1])
 	}
 	logger.Info("Finished writing to db")
+
+	arbExplore(database)
+}
+
+func arbExplore(database *memory.UniswapV2) {
+	logger.Info("Starting Arb Explore")
+
+	// get pairs [common.Address]
+	pairs, err := database.Pairs()
+	if err != nil {
+		log.Fatal("error", err)
+	}
+
+	for _, pairAddr := range pairs {
+		logger.Printf("Pair: %v \n", pairAddr)
+
+		pair := database.Pair(pairAddr)
+
+		a, b := pair.Reserves()
+		
+		fmt.Printf("%v - %v \n", a, b)
+	}
 }

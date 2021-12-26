@@ -88,10 +88,9 @@ func (s *UniswapV2) pair(address common.Address) (*Pair, bool) {
 	}, true
 }
 
-func (s *UniswapV2) Pair(pairAddress common.Address) *Pair {
+func (s *UniswapV2) Pair(pairAddress common.Address) (*Pair){
 	s.muPairs.Lock()
 	defer s.muPairs.Unlock()
-	// key := pairKey{TokenA: coinA, TokenB: coinB}
 	pair, _ := s.pair(pairAddress)
 	return pair
 }
@@ -116,9 +115,9 @@ func (s *UniswapV2) CreatePair(coinA, coinB, pairAddress common.Address, reserve
 	defer s.muPairs.Unlock()
 
 	// key := pairKey{coinA, coinB}
-	key := pairAddress
-	pair = s.addPair(key, pairData{reserve0: reserveA, reserve1: reserveB})
-	s.addKeyPair(key)
+	// key := pairAddress
+	pair = s.addPair(pairAddress, pairData{reserve0: reserveA, reserve1: reserveB})
+	s.addKeyPair(pairAddress)
 
 	return pair, nil
 }
