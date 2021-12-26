@@ -2,6 +2,7 @@ package main
 
 import (
 	"chainrunner/bindings/uniquery"
+	"chainrunner/mainnet"
 	"chainrunner/memory"
 	"chainrunner/util"
 	"fmt"
@@ -17,13 +18,17 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Struct for id -> token (or) id -> pair address
+type Arber struct {
+	tokens   map[uint]common.Address
+	pairs    map[uint]common.Address
+	pairInfo map[common.Address]*memory.Pair
+}
+
 // get uniswap pairs to bootstrap reserves data
 func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, [][3]common.Address) {
-	// re := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
-	// numberOfPairs := 5000
 	defer util.Duration(util.Track("getUniswapPairsAndReserves-5000"))
 	factory := common.HexToAddress("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")
-
 
 	// get pairs
 	pairs, err := query.GetPairsByIndexRange(&bind.CallOpts{}, factory, big.NewInt(0), big.NewInt(5000))
@@ -57,8 +62,6 @@ func main() {
 	godotenv.Load(".env")
 
 	database := memory.NewUniswapV2()
-	// create client
-	// rpcClient := services.InitRPCClient()
 	
 	conn, err := ethclient.Dial(os.Getenv("GETH_IPC_PATH"))
 
@@ -66,11 +69,8 @@ func main() {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
 
-	// address where multicall contract is located
-	uniqueryAddr := common.HexToAddress("0x5EF1009b9FCD4fec3094a5564047e190D72Bd511")
-
 	// query the contract
-	uniquery, err := uniquery.NewFlashBotsUniswapQuery(uniqueryAddr, conn)
+	uniquery, err := uniquery.NewFlashBotsUniswapQuery(mainnet.UNIQUERY_ADDR, conn)
 	if err != nil {
 		fmt.Println("error initiating contract to query mass")
 	}
@@ -82,10 +82,10 @@ func main() {
 	logger.Printf("reserves: %T  pairs: %T \n", reserves, pairs)
 
 	// loop over pairs
-	for index, pair := range pairs {
+	for pairIndex, pair := range pairs {
 		// logger.Printf("%v | %v | %T", index, , val)
 		// logger.Printf("%v %v %v \n", pair[0], pair[1], pair[2])
-		database.CreatePair(pair[0], pair[1], pair[2], reserves[index][0], reserves[index][1])
+		database.CreatePair(pair[0], pair[1], pair[2], reserves[pairIndex][0], reserves[pairIndex][1])
 	}
 	logger.Info("Finished writing to db")
 
@@ -108,6 +108,6 @@ func arbExplore(database *memory.UniswapV2) {
 
 		a, b := pair.Reserves()
 		
-		fmt.Printf("%v - %v \n", a, b)
+		logger.Printf("Reserves: %v - %v \n", a, b)
 	}
 }
