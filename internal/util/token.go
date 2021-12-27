@@ -2,7 +2,7 @@ package util
 
 import (
 	"chainrunner/bindings/erc20"
-	"chainrunner/util/decimal"
+	"chainrunner/internal/util/decimal"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"

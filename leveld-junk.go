@@ -1,8 +1,8 @@
 package main
 
 import (
+	"chainrunner/internal/util"
 	"chainrunner/services"
-	"chainrunner/util"
 	"fmt"
 	"log"
 )

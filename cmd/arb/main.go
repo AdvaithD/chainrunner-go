@@ -2,9 +2,9 @@ package main
 
 import (
 	"chainrunner/bindings/uniquery"
-	"chainrunner/mainnet"
-	"chainrunner/memory"
-	"chainrunner/util"
+	"chainrunner/internal/mainnet"
+	"chainrunner/internal/memory"
+	"chainrunner/internal/util"
 	"fmt"
 	"log"
 	"math/big"
