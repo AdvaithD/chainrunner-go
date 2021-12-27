@@ -12,4 +12,6 @@ var (
 	DB_PATH             = flag.String(
 		"db_path", "chainrunner-test-db", "where is the db",
 	)
+
+	DRY_RUN        = flag.Bool("dry_run", false, "dry run ")
 )
