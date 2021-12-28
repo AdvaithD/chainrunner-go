@@ -26,34 +26,37 @@ type Arber struct {
 }
 
 // get uniswap pairs to bootstrap reserves data
-func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, [][3]common.Address) {
+func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, []common.Address, util.UniswapPairs) {
 	defer util.Duration(util.Track("getUniswapPairsAndReserves-5000"))
-	factory := common.HexToAddress("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")
 
-	// get pairs
-	pairs, err := query.GetPairsByIndexRange(&bind.CallOpts{}, factory, big.NewInt(0), big.NewInt(5000))
+	pairInfos, err:= util.GetUniswapPairs()
+
 	if err != nil {
-		log.Fatalf("err getting data", err)
-	}
-	logger.Printf("Got %v pairs \n", len(pairs))
-
-	unipairs := make([]common.Address, 0)
-
-	for _, pair := range pairs {
-		unipairs = append(unipairs, pair[2])
+		fmt.Println("err getting graphql pairdata")
 	}
 
-	// fmt.Println("unipairs", "%v", unipairs)
+	// code to get n pairs from index 0 to n (not being used in favour of graphql rn)
+	// factory := common.HexToAddress("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")
+	// pairs, err := query.GetPairsByIndexRange(&bind.CallOpts{}, factory, big.NewInt(0), big.NewInt(5000))
+	// if err != nil {
+	// 	log.Fatalf("err getting data", err)
+	// }
+	// logger.Printf("Got %v pairs \n", len(pairs))
 
-	// var finalPairs []common.Address
-	res, err := query.GetReservesByPairs(&bind.CallOpts{Context: nil}, unipairs)
+	pairAddresses := make([]common.Address, 0)
+
+	for _, pair := range pairInfos.Data.Pairs {
+		pairAddresses = append(pairAddresses, common.HexToAddress(pair.Address))
+	}
+
+	reserves, err := query.GetReservesByPairs(&bind.CallOpts{Context: nil}, pairAddresses)
 
 	if err != nil {
 		logger.Error("err getting reserves", err)
 	}
 
 	// fmt.Printf("%V \n", res)
-	return res, pairs
+	return reserves, pairAddresses, pairInfos
 }
 
 
