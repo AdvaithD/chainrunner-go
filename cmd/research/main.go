@@ -2,7 +2,6 @@ package main
 
 import (
 	"chainrunner/bindings/uniquery"
-	"chainrunner/bindings/uniswap/router"
 	"chainrunner/internal/mainnet"
 	"chainrunner/internal/memory"
 	"chainrunner/internal/util"
@@ -68,9 +67,19 @@ func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, []co
 }
 
 // TODO: calculate amount out
-// func GetAmountOut(amountIn *big.Int, reserve0 *big.Int, reserve1 *big.Int) {
+func GetAmountOut(amountIn *big.Int, reserve0 *big.Int, reserve1 *big.Int) (*big.Int, error) {
+	amountInWithFee := amountIn.Mul(amountIn, new(big.Int).SetInt64(997))
+	var numerator = new(big.Int)
+	var denominator = new(big.Int)
+	var amountOut = new(big.Int)
 
-// }
+	numerator = numerator.Mul(amountIn, new(big.Int).SetInt64(997))
+	denominator = denominator.Add(reserve0.Mul(reserve0, new(big.Int).SetInt64(1000)), amountInWithFee)
+
+	amountOut = numerator.Div(numerator, denominator)
+
+	return amountOut, nil
+}
 
 type price_quote struct {
 	TokenIn       string
@@ -85,7 +94,6 @@ func main() {
 	godotenv.Load(".env")
 	
 	conn, err := ethclient.Dial(os.Getenv("INFURA_WS_URL"))
-	router, _ := router.NewRouter(mainnet.UNISWAP_ROUTER, conn)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
@@ -150,9 +158,7 @@ func main() {
 		one_token1 := new(big.Int).Exp(ten, big.NewInt(token1Decimals), nil)
 
 		timeto := time.Now()
-		price_0_to_1, err := router.GetAmountOut(
-			nil, one_token0, reserve0, reserve1,
-		)
+		price_0_to_1, err := GetAmountOut(one_token0, reserve0, reserve1)
 		fmt.Printf("Got amountout: %v \n", time.Since(timeto))
 
 		if err != nil {
@@ -160,9 +166,7 @@ func main() {
 		}
 
 		now := time.Now()
-		price_1_to_0, err := router.GetAmountOut(
-			nil, one_token1, reserve1, reserve0,
-		)
+		price_1_to_0, err := GetAmountOut(one_token1, reserve1, reserve0)
 
 		fmt.Printf("Got amountout: %v \n", time.Since(now))
 
