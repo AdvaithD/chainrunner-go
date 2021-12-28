@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"bytes"
@@ -10,11 +10,29 @@ import (
 	"time"
 )
 
-func main() {
+type UniswapPairs struct {
+	Data struct {
+		Pairs []struct {
+			Address     string `json:"id"`
+			Token0 struct {
+				Decimals string `json:"decimals"`
+				Address       string `json:"id"`
+				Symbol   string `json:"symbol"`
+			} `json:"token0"`
+			Token1 struct {
+				Decimals string `json:"decimals"`
+				Address       string `json:"id"`
+				Symbol   string `json:"symbol"`
+			} `json:"token1"`
+		} `json:"pairs"`
+	} `json:"data"`
+}
+
+func GetUniswapPairs() (UniswapPairs, error) {
     jsonData := map[string]string{
         "query": `
         {
-          pairs(first: 5, skip: 0, where: {volumeUSD_gt: "10000000"}, orderBy: reserveUSD, orderDirection: desc) {
+          pairs(first: 500, skip: 0, where: {volumeUSD_gt: "10000000"}, orderBy: reserveUSD, orderDirection: desc) {
             id
             token0 {
               id
@@ -44,30 +62,12 @@ func main() {
     data, _ := ioutil.ReadAll(response.Body)
     // fmt.Println(string(data))
 
-    type UniswapPairs struct {
-	Data struct {
-		Pairs []struct {
-			Address     string `json:"id"`
-			Token0 struct {
-				Decimals string `json:"decimals"`
-				Address       string `json:"id"`
-				Symbol   string `json:"symbol"`
-			} `json:"token0"`
-			Token1 struct {
-				Decimals string `json:"decimals"`
-				Address       string `json:"id"`
-				Symbol   string `json:"symbol"`
-			} `json:"token1"`
-		} `json:"pairs"`
-	} `json:"data"`
-   }
 
-   var pairs UniswapPairs
+   	var pairs UniswapPairs
 
-   json.Unmarshal(data, &pairs)
+   	json.Unmarshal(data, &pairs)
 
-   fmt.Printf("\n %+v\n", pairs)
-   fmt.Printf("\n %v\n", len(pairs.Data.Pairs))
+   	fmt.Printf("Got %v pairs\n", len(pairs.Data.Pairs))
 
-   return pairs, nil
+   	return pairs, nil
 }
