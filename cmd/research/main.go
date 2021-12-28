@@ -126,15 +126,16 @@ func main() {
 	reserves, pairs, pairInfos := getUniswapPairs(uniquery)
 
 	logger.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
-	logger.Printf("reserves: %T  pairs: %T \n", reserves, pairs)
-
-	// Helper mappings
 
 	// pair name -> address
 	tokenToName := make(map[string]common.Address)
+
+	// price quotes for each pair 0 -> 1 and 1 -> 0 included
 	var quotes []price_quote
 	// loop over pairs
 	now := time.Now()
+
+	// create edges for all the pairs that we have
 	for key, pair := range pairInfos.Data.Pairs {
 		tokenToName[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
 		tokenToName[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
