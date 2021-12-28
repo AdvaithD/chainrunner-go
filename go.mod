@@ -3,6 +3,7 @@ module chainrunner
 go 1.15
 
 require (
+	github.com/ALTree/bigfloat v0.0.0-20201218142103-4a33235224ec
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/ethereum/go-ethereum v1.10.14
