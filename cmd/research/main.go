@@ -134,8 +134,8 @@ func main() {
 	tokenToName := make(map[string]common.Address)
 	var quotes []price_quote
 	// loop over pairs
+	now := time.Now()
 	for key, pair := range pairInfos.Data.Pairs {
-		fmt.Println("iteration", key)
 		tokenToName[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
 		tokenToName[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
 
@@ -157,18 +157,14 @@ func main() {
 		one_token0 := new(big.Int).Exp(ten, big.NewInt(token0Decimals), nil)
 		one_token1 := new(big.Int).Exp(ten, big.NewInt(token1Decimals), nil)
 
-		timeto := time.Now()
 		price_0_to_1, err := GetAmountOut(one_token0, reserve0, reserve1)
-		fmt.Printf("Got amountout: %v \n", time.Since(timeto))
 
 		if err != nil {
 			fmt.Println("comeback")		
 		}
 
-		now := time.Now()
 		price_1_to_0, err := GetAmountOut(one_token1, reserve1, reserve0)
 
-		fmt.Printf("Got amountout: %v \n", time.Since(now))
 
 		if err != nil {
 			fmt.Println("comeback")		
@@ -196,6 +192,7 @@ func main() {
 		})
 
 	}
+	fmt.Printf("Took %v to create edges for 500 pairs", time.Since(now))
 }
 
 
