@@ -18,6 +18,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var (
+	ten       = new(big.Int).SetInt64(10)
+)
 // Struct for id -> token (or) id -> pair address
 type Arber struct {
 	tokens   map[uint]common.Address
@@ -63,10 +66,8 @@ func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, []co
 func main() {
 	// init .env into program context
 	godotenv.Load(".env")
-
-	database := memory.NewUniswapV2()
 	
-	conn, err := ethclient.Dial(os.Getenv("GETH_IPC_PATH"))
+	conn, err := ethclient.Dial(os.Getenv("INFURA_WS_URL"))
 
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
@@ -78,39 +79,68 @@ func main() {
 		fmt.Println("error initiating contract to query mass")
 	}
 
+	// arbExplore(reserves, pairs, pairInfos)
+	type pairData struct {
+		Address common.Address 
+		Token0 struct {
+			Decimals uint8
+			Address  *common.Address
+			Symbol   *string
+		}
+		Token1 struct {
+			Decimals *uint8
+			Address  *common.Address 
+			Symbol   *string
+		}
+	} 
+	// pairAddress -> pairInfo
+	// var pairInfoMappingmap map[common.Address]pairData
 	// [reserv0, reserve1, blockTimestampLast]
-	reserves, pairs := getUniswapPairs(uniquery)
+	reserves, pairs, pairInfos := getUniswapPairs(uniquery)
 
 	logger.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
 	logger.Printf("reserves: %T  pairs: %T \n", reserves, pairs)
+	logger.Printf("pairinfos: %+v \n", pairInfos)
+	// pair name -> address
+	tokenToName := make(map[string]common.Address)
 
-	// loop over pairs
-	for pairIndex, pair := range pairs {
-		// logger.Printf("%v | %v | %T", index, , val)
-		// logger.Printf("%v %v %v \n", pair[0], pair[1], pair[2])
-		database.CreatePair(pair[0], pair[1], pair[2], reserves[pairIndex][0], reserves[pairIndex][1])
-	}
-	logger.Info("Finished writing to db")
+	for _, pair := range pairInfos.Data.Pairs {
 
-	arbExplore(database)
-}
+		fmt.Printf("%+v \n", pair)
 
-func arbExplore(database *memory.UniswapV2) {
-	logger.Info("Starting Arb Explore")
+		tokenToName[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
+		tokenToName[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
 
-	// get pairs [common.Address]
-	pairs, err := database.Pairs()
-	if err != nil {
-		log.Fatal("error", err)
-	}
 
-	for _, pairAddr := range pairs {
-		logger.Printf("Pair: %v \n", pairAddr)
+		one_token0 = new(big.Int).Exp(ten)
 
-		pair := database.Pair(pairAddr)
-
-		a, b := pair.Reserves()
-		
-		logger.Printf("Reserves: %v - %v \n", a, b)
 	}
 }
+
+// type price_quote struct {
+// 	TokenIn       string
+// 	TokenOut      string
+// 	PriceInToOut  *big.Float
+// 	PriceNegOfLog *big.Float
+// }
+
+// func CreateEdges(reserves [][3]*big.Int,pairs []common.Address) error {
+// 	var quotes []price_quote
+// }
+
+// func arbExplore(reserves [][3]*big.Int,pairs []common.Address,uniswapInfos *util.UniswapPairs) {
+// 	logger.Info("Starting Arb Explore")
+
+// 	// var quotes []price_quote
+// 	// loop over each pair
+
+// 	for key, pair := range pairs {
+// 		// create edge
+// 		token0 := uniswapInfos.Data.Pairs[key].Token0.Address
+// 		token1 := uniswapInfos.Data.Pairs[key].Token0.Address
+
+// 		// one_toke0 := new(big.Int).Exp(10, big.NewInt(int64(token0.Decimals)), nil)
+// 		// one_toke0 := new(big.Int).Exp(10, big.NewInt(int64(token0.Decimals)), nil)
+// 	}
+
+// }
