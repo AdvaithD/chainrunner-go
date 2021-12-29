@@ -9,6 +9,8 @@ import (
 	"log"
 	"math/big"
 	"os"
+
+
 	"strconv"
 	"time"
 
@@ -89,7 +91,10 @@ type price_quote struct {
 	PriceNegOfLog *big.Float
 }
 
-
+// 1. Get GraphQL pair data
+// 2. Create edges
+// 3. Perform graph search algorithm
+// 4. log it if possible (dry run)
 
 func main() {
 	// init .env into program context
@@ -123,8 +128,8 @@ func main() {
 
 	// pairAddress -> pairInfo
 	// var pairInfoMappingmap map[common.Address]pairData
-
 	// [reserv0, reserve1, blockTimestampLast]
+
 	reserves, pairs, pairInfos := getUniswapPairs(uniquery)
 
 	logger.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
@@ -137,7 +142,12 @@ func main() {
 	// loop over pairs
 	now := time.Now()
 
-	// create edges for all the pairs that we have
+    logger.Printf("tokenToName has %v\n", len(tokenToName))
+    logger.Printf("pairs user were %v\n", len(pairs))
+
+    nodes := make([]string, len(tokenToName))    
+
+	// for each pair, create edges for all the pairs that we have
 	for key, pair := range pairInfos.Data.Pairs {
 		tokenToName[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
 		tokenToName[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
@@ -193,29 +203,42 @@ func main() {
 			TokenIn: pair.Token1.Symbol, TokenOut: pair.Token0.Symbol,
 			PriceInToOut: p1, PriceNegOfLog: p1_neg_log,
 		})
-
 	}
-	fmt.Printf("Took %v to create edges for 500 pairs", time.Since(now))
+    fmt.Printf("[Create Edges]: Took %v to create edges for %v pairs \n", time.Since(now), len(pairs))
+    fmt.Printf("[EDGE] Edge Count: %v, nodes: %v distances: %v tokenToName: %v\n", len(quotes), nodes, distances, len(tokenToName))
+
+
+    // now, loop over nodes
+    // using tokenToName as it is a measure of unique assets, could probably use better naming
+    distances := make([]float64, len(tokenToName))
+
+    // set initial distances to infinity
+    for i := range distances {
+        distances[i] = math.Inf(1)
+    }
+
+    for i := 0; i < len(tokenToName); i++ {
+        for _, edge := range quotes {
+            cost, _ := edge.PriceNegOfLog.Float64()
+            token_in, exists := tokenToName[edge.TokenIn)
+
+            if !exists {
+                logger.Warn("Token does not exists: %v", token_in)
+            }
+
+            token_out, exists := tokenToName[edge.TokenIn)
+
+            if !exists {
+                logger.Warn("Token does not exists: %v", token_out)
+            }
+
+            a := distances[token_in]
+            b := distances[token_out]
+
+            if a + cost < b {
+                distances[] = a + c
+            }
+
+        }
+    }
 }
-
-
-// func CreateEdges(reserves [][3]*big.Int,pairs []common.Address) error {
-// 	var quotes []price_quote
-// }
-
-// func arbExplore(reserves [][3]*big.Int,pairs []common.Address,uniswapInfos *util.UniswapPairs) {
-// 	logger.Info("Starting Arb Explore")
-
-// 	// var quotes []price_quote
-// 	// loop over each pair
-
-// 	for key, pair := range pairs {
-// 		// create edge
-// 		token0 := uniswapInfos.Data.Pairs[key].Token0.Address
-// 		token1 := uniswapInfos.Data.Pairs[key].Token0.Address
-
-// 		// one_toke0 := new(big.Int).Exp(10, big.NewInt(int64(token0.Decimals)), nil)
-// 		// one_toke0 := new(big.Int).Exp(10, big.NewInt(int64(token0.Decimals)), nil)
-// 	}
-
-// }

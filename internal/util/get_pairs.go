@@ -32,7 +32,7 @@ func GetUniswapPairs() (UniswapPairs, error) {
     jsonData := map[string]string{
         "query": `
         {
-          pairs(first: 500, skip: 0, where: {volumeUSD_gt: "10000000"}, orderBy: reserveUSD, orderDirection: desc) {
+          pairs(first: 1000, skip: 0, where: {volumeUSD_gt: "10000000"}, orderBy: reserveUSD, orderDirection: desc) {
             id
             token0 {
               id
