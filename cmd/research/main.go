@@ -81,12 +81,14 @@ func GetAmountOut(amountIn *big.Int, reserve0 *big.Int, reserve1 *big.Int) (*big
 	return amountOut, nil
 }
 
+// is this an edge?
 type price_quote struct {
 	TokenIn       string
 	TokenOut      string
 	PriceInToOut  *big.Float
 	PriceNegOfLog *big.Float
 }
+
 
 
 func main() {
