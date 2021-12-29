@@ -232,12 +232,11 @@ func main() {
         queue.PushBack(token)
     }
 
-    for condition {
+    for length := queue.Len(); length > 0; {
         u := queue.Front()
         queue.Remove(u)
 
-
-        fmt.Println("u, %v\n", u)
+        fmt.Printf("u, %+v\n", u)
         // now, loop  over each edge (u,v) in Edges of the graph
 
 
