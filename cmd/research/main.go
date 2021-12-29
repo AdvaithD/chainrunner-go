@@ -147,6 +147,7 @@ func main() {
     logger.Printf("pairs user were %v\n", len(pairs))
 
     nodes := make([]string, len(tokenToName))    
+    edgesFromTo := make(map[string][]price_quote)
 
 	// for each pair, create edges for all the pairs that we have
 	for key, pair := range pairInfos.Data.Pairs {
@@ -197,16 +198,27 @@ func main() {
 		p1_neg_log := bigfloat.Log(p1)
 		p1_neg_log.Mul(p1_neg_log, neg_one)
 
-		quotes = append(quotes, price_quote{
+		// create two quotes
+		firstQuote := price_quote{
 			TokenIn: pair.Token0.Symbol, TokenOut: pair.Token1.Symbol,
 			PriceInToOut: p0, PriceNegOfLog: p0_neg_log,
-		}, price_quote{
+		}
+
+		secondQuote := price_quote{
 			TokenIn: pair.Token1.Symbol, TokenOut: pair.Token0.Symbol,
 			PriceInToOut: p1, PriceNegOfLog: p1_neg_log,
-		})
+		}
+
+		// edges from a node mapping store
+		edgesFromTo[firstQuote.TokenIn] = append(edgesFromTo[firstQuote.TokenIn], firstQuote)
+		edgesFromTo[secondQuote.TokenIn] = append(edgesFromTo[secondQuote.TokenIn], secondQuote)
+
+		quotes = append(quotes, firstQuote, secondQuote)
 	}
     fmt.Printf("[Create Edges]: Took %v to create edges for %v pairs \n", time.Since(now), len(pairs))
     fmt.Printf("[EDGE] Edge Count: %v, nodes: %v tokenToName: %v\n", len(quotes), nodes, len(tokenToName))
+    fmt.Printf("[EDGE] Quotescount: %v, edgesFromTo: %v \n", len(quotes), len(edgesFromTo))
+
 
 
     // length (in amount of edges) of current shortest path from the source to u
@@ -232,12 +244,16 @@ func main() {
         queue.PushBack(token)
     }
 
-    for length := queue.Len(); length > 0; {
+    for queue.Len() > 0 {
         u := queue.Front()
-        queue.Remove(u)
 
-        fmt.Printf("u, %+v\n", u)
+        // fmt.Printf("u, %+v %T \n", u, u.Value)
+        queue.Remove(u)
         // now, loop  over each edge (u,v) in Edges of the graph
+
+	for _, v := range edgesFromTo[u.Value.(string)] {
+          fmt.Printf("key, %+v\n", v)
+	}
 
 
         // if sum of (distance of u, weight w(u, v)) is less than distance[v]
