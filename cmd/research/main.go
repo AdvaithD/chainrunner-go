@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+    "container/list"
 	"os"
 
 
@@ -205,40 +206,91 @@ func main() {
 		})
 	}
     fmt.Printf("[Create Edges]: Took %v to create edges for %v pairs \n", time.Since(now), len(pairs))
-    fmt.Printf("[EDGE] Edge Count: %v, nodes: %v distances: %v tokenToName: %v\n", len(quotes), nodes, distances, len(tokenToName))
+    fmt.Printf("[EDGE] Edge Count: %v, nodes: %v tokenToName: %v\n", len(quotes), nodes, len(tokenToName))
+
+
+    // length (in amount of edges) of current shortest path from the source to u
+    length := make(map[string]int64)
+
+    // distance is the weight of the current shortest path from source to u 
+    distances := make(map[string]int64)
+
+    // Notation:
+    // weight is price, u and v are tokenin and tokenout
+
+    // FIFO Queue
+    queue := list.New()
+
+    // queue is not empty condition
+
+
+    // SFPA - START
+    // for each vertex, set initial distances to 0
+    for token := range tokenToName {
+        length[token] = 0
+        distances[token] = 0
+        queue.PushBack(token)
+    }
+
+    for condition {
+        u := queue.Front()
+        queue.Remove(u)
+
+
+        fmt.Println("u, %v\n", u)
+        // now, loop  over each edge (u,v) in Edges of the graph
+
+
+        // if sum of (distance of u, weight w(u, v)) is less than distance[v]
+            // length v = length u + 1
+
+            // if length of v == n
+                // NEGATIVE CYCLE FOUND
+
+            // distance of v = distacne of u + weight w(u,v)
+
+            // if Queue not containts v push it to queue
+
+
+    }
+
+
+
+
+    // SFPA - END
 
 
     // now, loop over nodes
     // using tokenToName as it is a measure of unique assets, could probably use better naming
-    distances := make([]float64, len(tokenToName))
+    // distances := make(map[string]float64, len(tokenToName))
 
     // set initial distances to infinity
-    for i := range distances {
-        distances[i] = math.Inf(1)
-    }
+    // for i := range distances {
+    //     distances[i] = math.Inf(1)
+    // }
 
-    for i := 0; i < len(tokenToName); i++ {
-        for _, edge := range quotes {
-            cost, _ := edge.PriceNegOfLog.Float64()
-            token_in, exists := tokenToName[edge.TokenIn)
+    // for i := 0; i < len(tokenToName); i++ {
+    //     for _, edge := range quotes {
+    //         cost, _ := edge.PriceNegOfLog.Float64()
+    //         token_in, exists := tokenToName[edge.TokenIn)
 
-            if !exists {
-                logger.Warn("Token does not exists: %v", token_in)
-            }
+    //         if !exists {
+    //             logger.Warn("Token does not exists: %v", token_in)
+    //         }
 
-            token_out, exists := tokenToName[edge.TokenIn)
+    //         token_out, exists := tokenToName[edge.TokenIn)
 
-            if !exists {
-                logger.Warn("Token does not exists: %v", token_out)
-            }
+    //         if !exists {
+    //             logger.Warn("Token does not exists: %v", token_out)
+    //         }
 
-            a := distances[token_in]
-            b := distances[token_out]
+    //         a := distances[token_in]
+    //         b := distances[token_out]
 
-            if a + cost < b {
-                distances[] = a + c
-            }
+    //         if a + cost < b {
+    //             distances[] = a + c
+    //         }
 
-        }
-    }
+    //     }
+    // }
 }
