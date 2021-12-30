@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"net/http"
 	"time"
 )
@@ -32,7 +33,7 @@ func GetUniswapPairs() (UniswapPairs, error) {
     jsonData := map[string]string{
         "query": `
         {
-          pairs(first: 100, skip: 0, where: {volumeUSD_gt: "10000000"}, orderBy: reserveUSD, orderDirection: desc) {
+          pairs(first: 1000, skip: 0, where: {volumeUSD_gt: "10000000"}, orderBy: reserveUSD, orderDirection: desc) {
             id
             token0 {
               id
@@ -70,4 +71,20 @@ func GetUniswapPairs() (UniswapPairs, error) {
    	fmt.Printf("Got %v pairs\n", len(pairs.Data.Pairs))
 
    	return pairs, nil
+}
+
+// calculate amount out given amount in, reserve0 and reserve1
+func GetAmountOut(amountIn *big.Int, reserve0 *big.Int, reserve1 *big.Int) (*big.Int, error) {
+        amountInWithFee := amountIn.Mul(amountIn, new(big.Int).SetInt64(997))
+
+        var numerator = new(big.Int)
+        var denominator = new(big.Int)
+        var amountOut = new(big.Int)
+
+        numerator = numerator.Mul(amountInWithFee, reserve1)
+        denominator = denominator.Add(reserve0.Mul(reserve0, new(big.Int).SetInt64(1000)), amountInWithFee)
+
+        amountOut = numerator.Div(numerator, denominator)
+
+        return amountOut, nil
 }

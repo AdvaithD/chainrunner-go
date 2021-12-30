@@ -62,20 +62,6 @@ func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, []co
         return reserves, pairAddresses, pairInfos
 }
 
-// calculate amount out given amount in, reserve0 and reserve1
-func GetAmountOut(amountIn *big.Int, reserve0 *big.Int, reserve1 *big.Int) (*big.Int, error) {
-        amountInWithFee := amountIn.Mul(amountIn, new(big.Int).SetInt64(997))
-        var numerator = new(big.Int)
-        var denominator = new(big.Int)
-        var amountOut = new(big.Int)
-
-        numerator = numerator.Mul(amountInWithFee, reserve1)
-        denominator = denominator.Add(reserve0.Mul(reserve0, new(big.Int).SetInt64(1000)), amountInWithFee)
-
-        amountOut = numerator.Div(numerator, denominator)
-
-        return amountOut, nil
-}
 
 // is this an edge?
 type price_quote struct {
@@ -165,13 +151,13 @@ func main() {
                 one_token0 := new(big.Int).Exp(ten, big.NewInt(token0Decimals), nil)
                 one_token1 := new(big.Int).Exp(ten, big.NewInt(token1Decimals), nil)
 
-                price_0_to_1, err := GetAmountOut(one_token0, reserve0, reserve1)
+                price_0_to_1, err := util.GetAmountOut(one_token0, reserve0, reserve1)
 
                 if err != nil {
                         fmt.Println("comeback")
                 }
 
-                price_1_to_0, err := GetAmountOut(one_token1, reserve1, reserve0)
+                price_1_to_0, err := util.GetAmountOut(one_token1, reserve1, reserve0)
 
                 if err != nil {
                         fmt.Println("comeback")
