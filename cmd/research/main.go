@@ -5,7 +5,6 @@ import (
 	"chainrunner/internal/mainnet"
 	"chainrunner/internal/memory"
 	"chainrunner/internal/util"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ALTree/bigfloat"
+	"github.com/pkg/profile"
 	logger "github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -76,6 +76,13 @@ type price_quote struct {
 // 4. log it if possible (dry run)
 
 func main() {
+        // CPUProfile enables cpu profiling. Note: Default is CPU
+        // defer profile.Start(profile.CPUProfile).Stop()
+
+        // GoroutineProfile enables goroutine profiling.
+        // It returns all Goroutines alive when defer occurs.
+        defer profile.Start(profile.GoroutineProfile).Stop()
+
         // init .env into program context
         godotenv.Load(".env")
 
@@ -197,11 +204,10 @@ func main() {
         fmt.Printf("[EDGE] Edge Count: %v, nodes: %v tokenToName: %v\n", len(quotes), nodes, len(tokenToName))
         fmt.Printf("[EDGE] Quotescount: %v, edgesFromTo: %v \n", len(quotes), len(edgesFromTo))
 
+	// data, _ := json.MarshalIndent(edgesFromTo["WETH"], "", " ")
 
-	data, _ := json.MarshalIndent(edgesFromTo["WETH"], "", " ")
+	// fmt.Println("DATA", string(data))
 
-
-	fmt.Println("DATA", string(data))
         // length (in amount of edges) of current shortest path from the source to u
         length := make(map[string]int64)
 
@@ -254,4 +260,6 @@ func main() {
                         }
                 }
         }
+
+        fmt.Println("Finished")
 }
