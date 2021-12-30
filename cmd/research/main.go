@@ -74,32 +74,24 @@ type price_quote struct {
 // 4. log it if possible (dry run)
 
 // TODO: Finish stack code to trace a negative cycle
-func TraceNegativeCycle(pre map[string]string, string v) ([]string) {
-        for !Stack.contains(v) {
-                Stack.push(v)
-                v = pre[v]
-        }
+// func TraceNegativeCycle(pre map[string]string, string v) ([]string) {
+//         for !Stack.contains(v) {
+//                 Stack.push(v)
+//                 v = pre[v]
+//         }
 
-        cycle := make([]string)
-        cycle = append(cycle, v)
+//         cycle := make([]string)
+//         cycle = append(cycle, v)
 
-        for Stack.top() != v {
-                cycle = append(Stack.pop())
-        }
-        cycle = append(cycle, v)
+//         for Stack.top() != v {
+//                 cycle = append(Stack.pop())
+//         }
+//         cycle = append(cycle, v)
 
-        return cycle
-}
+//         return cycle
+// }
 
 func main() {
-        // CPUProfile enables cpu profiling. Note: Default is CPU
-        // defer profile.Start(profile.CPUProfile).Stop()
-
-        // GoroutineProfile enables goroutine profiling.
-        // It returns all Goroutines alive when defer occurs.
-        // defer profile.Start(profile.GoroutineProfile).Stop()
-
-        // init .env into program context
         godotenv.Load(".env")
 
         conn, err := ethclient.Dial(os.Getenv("INFURA_WS_URL"))
@@ -113,7 +105,6 @@ func main() {
                 fmt.Println("error initiating contract to query mass")
         }
 
-        // arbExplore(reserves, pairs, pairInfos)
         type pairData struct {
                 Address common.Address
                 Token0  struct {
@@ -128,14 +119,9 @@ func main() {
                 }
         }
 
-        // pairAddress -> pairInfo
-        // var pairInfoMappingmap map[common.Address]pairData
-        // [reserv0, reserve1, blockTimestampLast]
-
         reserves, pairs, pairInfos := getUniswapPairs(uniquery)
 
         // we measure timefrom here (post data collection)
-
 
         logger.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
 
@@ -231,10 +217,12 @@ func main() {
         // length (in amount of edges) of current shortest path from the source to u
         length := make(map[string]int64)
 
-        // // distance is the weight of the current shortest path from source to u
+        // distance is the weight of the current shortest path from source to u
         distances := make(map[string]*big.Float)
 
-        // pre := make([]string)
+        // pre[u] is the direct predecessor of u in the current shortest path
+        // update pre[v] whenever distance of u + weight < dis[v]
+        pre := make(map[string]string)
 
         // // FIFO Queue
         // queue := list.New()
@@ -253,23 +241,33 @@ func main() {
                 queue.Enqueue(token)
         }
 
+        iter := 0
+
         // // weight is price, u and v are tokenin and tokenout
         for queue.Size() > 0 {
                 u, _ := queue.Front()
-                // fmt.Printf("u, %+v %T \n", u, u.Value)
+                fmt.Printf("u, %+v %T \n", u, u)
                 queue.Dequeue()
                 // now, loop  over each edge (u,v) in Edges of the graph
 
                 for _, v := range edgesFromTo[u] {
                         // if sum of (distance of u, weight w(u, v)) is less than distance[v]
-                        if (distances[u].Add(distances[u], v.PriceNegOfLog)).Cmp(distances[v.TokenOut]) < 0 {
+                        var distance big.Float
+                        if (distance.Add(distances[u], v.PriceNegOfLog)).Cmp(distances[v.TokenOut]) == -1 {
+                                pre[v.TokenOut] = u
+
+                                var newDistance big.Float
+
+                                distances[v.TokenOut] = newDistance.Add(distances[u], v.PriceNegOfLog)
+
+                                iter += 1
+
                                 length[v.TokenOut] = length[u] + 1
 
                                 if length[v.TokenOut] < 0 {
                                         logger.Warn("Negative cycle!")
                                 }
 
-                                distances[v.TokenOut] = distances[u].Add(distances[u], v.PriceNegOfLog)
                                 //TODO: if Queue not containts v push it to queue
 
                                 if !queue.Contains(v.TokenOut) {
