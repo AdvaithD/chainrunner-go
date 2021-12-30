@@ -213,7 +213,8 @@ func main() {
 		edgesFromTo[firstQuote.TokenIn] = append(edgesFromTo[firstQuote.TokenIn], firstQuote)
 		edgesFromTo[secondQuote.TokenIn] = append(edgesFromTo[secondQuote.TokenIn], secondQuote)
 
-		quotes = append(quotes, firstQuote, secondQuote)
+		quotes = append(quotes, firstQuote)
+		quotes = append(quotes, secondQuote)
 	}
     fmt.Printf("[Create Edges]: Took %v to create edges for %v pairs \n", time.Since(now), len(pairs))
     fmt.Printf("[EDGE] Edge Count: %v, nodes: %v tokenToName: %v\n", len(quotes), nodes, len(tokenToName))
@@ -252,60 +253,23 @@ func main() {
         // now, loop  over each edge (u,v) in Edges of the graph
 
 	for _, v := range edgesFromTo[u.Value.(string)] {
-          fmt.Printf("key, %+v\n", v)
+          //fmt.Printf("key, %+v\n", v)
+	  fmt.Printf("u: %+v \n", u.Value)
+	  fmt.Printf("v: %+v \n", v)
+	  // if sum of (distance of u, weight w(u, v)) is less than distance[v]
+
+	  if distances[u.Value.(string)] + v.PriceNegOfLog < distances[v.TokenOut] {
+		length[v] = length[u.Value.(string)] + 1
+		if length[v] < 0 {
+			logger.Warn("Negative cycle!")
+		}
+
+		distances[v.TokenOut] = distances[u.Value.(string)] + v.PriceNegOfLog
+
+
+		//TODO: if Queue not containts v push it to queue
+
+	  }
 	}
-
-
-        // if sum of (distance of u, weight w(u, v)) is less than distance[v]
-            // length v = length u + 1
-
-            // if length of v == n
-                // NEGATIVE CYCLE FOUND
-
-            // distance of v = distacne of u + weight w(u,v)
-
-            // if Queue not containts v push it to queue
-
-
     }
-
-
-
-
-    // SFPA - END
-
-
-    // now, loop over nodes
-    // using tokenToName as it is a measure of unique assets, could probably use better naming
-    // distances := make(map[string]float64, len(tokenToName))
-
-    // set initial distances to infinity
-    // for i := range distances {
-    //     distances[i] = math.Inf(1)
-    // }
-
-    // for i := 0; i < len(tokenToName); i++ {
-    //     for _, edge := range quotes {
-    //         cost, _ := edge.PriceNegOfLog.Float64()
-    //         token_in, exists := tokenToName[edge.TokenIn)
-
-    //         if !exists {
-    //             logger.Warn("Token does not exists: %v", token_in)
-    //         }
-
-    //         token_out, exists := tokenToName[edge.TokenIn)
-
-    //         if !exists {
-    //             logger.Warn("Token does not exists: %v", token_out)
-    //         }
-
-    //         a := distances[token_in]
-    //         b := distances[token_out]
-
-    //         if a + cost < b {
-    //             distances[] = a + c
-    //         }
-
-    //     }
-    // }
 }
