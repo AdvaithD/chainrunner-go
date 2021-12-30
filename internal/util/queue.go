@@ -52,22 +52,22 @@ func (c *CustomQueue) Contains(str string) bool {
 	return false
 }
 
-func main() {
-	CustomQueue := &CustomQueue{
-		Queue: make([]string, 0),
-	}
+// func main() {
+// 	CustomQueue := &CustomQueue{
+// 		Queue: make([]string, 0),
+// 	}
 
-	fmt.Printf("Enqueue: A\n")
-	CustomQueue.Enqueue("A")
-	fmt.Printf("Enqueue: B\n")
-	CustomQueue.Enqueue("B")
-	fmt.Printf("Len: %d\n", CustomQueue.Size())
+// 	fmt.Printf("Enqueue: A\n")
+// 	CustomQueue.Enqueue("A")
+// 	fmt.Printf("Enqueue: B\n")
+// 	CustomQueue.Enqueue("B")
+// 	fmt.Printf("Len: %d\n", CustomQueue.Size())
 
-	for CustomQueue.Size() > 0 {
-		frontVal, _ := CustomQueue.Front()
-		fmt.Printf("Front: %s\n", frontVal)
-		fmt.Printf("Dequeue: %s\n", frontVal)
-		CustomQueue.Dequeue()
-	}
-	fmt.Printf("Len: %d\n", CustomQueue.Size())
-}
+// 	for CustomQueue.Size() > 0 {
+// 		frontVal, _ := CustomQueue.Front()
+// 		fmt.Printf("Front: %s\n", frontVal)
+// 		fmt.Printf("Dequeue: %s\n", frontVal)
+// 		CustomQueue.Dequeue()
+// 	}
+// 	fmt.Printf("Len: %d\n", CustomQueue.Size())
+// }

@@ -229,24 +229,28 @@ func main() {
         for queue.Size() > 0 {
                 u, _ := queue.Front()
                 // fmt.Printf("u, %+v %T \n", u, u.Value)
-                queue.Remove(u)
+                queue.Dequeue()
                 // now, loop  over each edge (u,v) in Edges of the graph
 
-                for _, v := range edgesFromTo[u.Value.(string)] {
+                for _, v := range edgesFromTo[u] {
 
                         // fmt.Printf("u: %+v \n", u.Value)
                         // fmt.Printf("v: %+v \n", v)
 
                         // if sum of (distance of u, weight w(u, v)) is less than distance[v]
-                        if (distances[u.Value.(string)].Add(distances[u.Value.(string)], v.PriceNegOfLog)).Cmp(distances[v.TokenOut]) < 0 {
-                                length[v.TokenOut] = length[u.Value.(string)] + 1
+                        if (distances[u].Add(distances[u], v.PriceNegOfLog)).Cmp(distances[v.TokenOut]) < 0 {
+                                length[v.TokenOut] = length[u] + 1
 
                                 if length[v.TokenOut] < 0 {
                                         logger.Warn("Negative cycle!")
                                 }
 
-                                distances[v.TokenOut] = distances[u.Value.(string)].Add(distances[u.Value.(string)], v.PriceNegOfLog)
+                                distances[v.TokenOut] = distances[u].Add(distances[u], v.PriceNegOfLog)
                                 //TODO: if Queue not containts v push it to queue
+
+                                if !queue.Contains(v.TokenOut) {
+                                        queue.Enqueue(v.TokenOut)
+                                }
                         }
                 }
         }
