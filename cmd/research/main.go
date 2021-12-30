@@ -5,12 +5,11 @@ import (
 	"chainrunner/internal/mainnet"
 	"chainrunner/internal/memory"
 	"chainrunner/internal/util"
+	"container/list"
 	"fmt"
 	"log"
 	"math/big"
-    "container/list"
 	"os"
-
 
 	"strconv"
 	"time"
@@ -26,6 +25,7 @@ import (
 
 var (
 	ten       = new(big.Int).SetInt64(10)
+	zero       = new(big.Int).SetInt64(0)
 	neg_one   = new(big.Float).SetFloat64(-1)
 )
 // Struct for id -> token (or) id -> pair address
@@ -226,7 +226,7 @@ func main() {
     length := make(map[string]int64)
 
     // distance is the weight of the current shortest path from source to u 
-    distances := make(map[string]int64)
+    distances := make(map[string]*big.Float)
 
     // Notation:
     // weight is price, u and v are tokenin and tokenout
@@ -240,8 +240,8 @@ func main() {
     // SFPA - START
     // for each vertex, set initial distances to 0
     for token := range tokenToName {
-        length[token] = 0
-        distances[token] = 0
+	    length[token] = 0
+	    distances[token] = new(big.Float).SetInt(zero)
         queue.PushBack(token)
     }
 
@@ -254,19 +254,17 @@ func main() {
 
 	for _, v := range edgesFromTo[u.Value.(string)] {
           //fmt.Printf("key, %+v\n", v)
-	  fmt.Printf("u: %+v \n", u.Value)
-	  fmt.Printf("v: %+v \n", v)
+	//   fmt.Printf("u: %+v \n", u.Value)
+	//   fmt.Printf("v: %+v \n", v)
 	  // if sum of (distance of u, weight w(u, v)) is less than distance[v]
 
-	  if distances[u.Value.(string)] + v.PriceNegOfLog < distances[v.TokenOut] {
-		length[v] = length[u.Value.(string)] + 1
-		if length[v] < 0 {
+	  if (distances[u.Value.(string)].Add(distances[u.Value.(string)], v.PriceNegOfLog)).Cmp(distances[v.TokenOut]) < 0 {
+		length[v.TokenOut] = length[u.Value.(string)] + 1
+		if length[v.TokenOut] < 0 {
 			logger.Warn("Negative cycle!")
 		}
 
-		distances[v.TokenOut] = distances[u.Value.(string)] + v.PriceNegOfLog
-
-
+		distances[v.TokenOut] = distances[u.Value.(string)].Add(distances[u.Value.(string)], v.PriceNegOfLog)
 		//TODO: if Queue not containts v push it to queue
 
 	  }
