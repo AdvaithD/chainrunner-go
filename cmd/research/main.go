@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/ALTree/bigfloat"
-	"github.com/pkg/profile"
 	logger "github.com/sirupsen/logrus"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -61,8 +60,7 @@ func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, []co
         return reserves, pairAddresses, pairInfos
 }
 
-
-// is this an edge?
+// Definition of an edge in uniswapv2 terms
 type price_quote struct {
         TokenIn       string
         TokenOut      string
@@ -75,13 +73,31 @@ type price_quote struct {
 // 3. Perform graph search algorithm
 // 4. log it if possible (dry run)
 
+// TODO: Finish stack code to trace a negative cycle
+func TraceNegativeCycle(pre map[string]string, string v) ([]string) {
+        for !Stack.contains(v) {
+                Stack.push(v)
+                v = pre[v]
+        }
+
+        cycle := make([]string)
+        cycle = append(cycle, v)
+
+        for Stack.top() != v {
+                cycle = append(Stack.pop())
+        }
+        cycle = append(cycle, v)
+
+        return cycle
+}
+
 func main() {
         // CPUProfile enables cpu profiling. Note: Default is CPU
         // defer profile.Start(profile.CPUProfile).Stop()
 
         // GoroutineProfile enables goroutine profiling.
         // It returns all Goroutines alive when defer occurs.
-        defer profile.Start(profile.GoroutineProfile).Stop()
+        // defer profile.Start(profile.GoroutineProfile).Stop()
 
         // init .env into program context
         godotenv.Load(".env")
@@ -117,6 +133,9 @@ func main() {
         // [reserv0, reserve1, blockTimestampLast]
 
         reserves, pairs, pairInfos := getUniswapPairs(uniquery)
+
+        // we measure timefrom here (post data collection)
+
 
         logger.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
 
@@ -207,12 +226,15 @@ func main() {
 	// data, _ := json.MarshalIndent(edgesFromTo["WETH"], "", " ")
 
 	// fmt.Println("DATA", string(data))
+        start := time.Now()
 
         // length (in amount of edges) of current shortest path from the source to u
         length := make(map[string]int64)
 
         // // distance is the weight of the current shortest path from source to u
         distances := make(map[string]*big.Float)
+
+        // pre := make([]string)
 
         // // FIFO Queue
         // queue := list.New()
@@ -239,10 +261,6 @@ func main() {
                 // now, loop  over each edge (u,v) in Edges of the graph
 
                 for _, v := range edgesFromTo[u] {
-
-                        // fmt.Printf("u: %+v \n", u.Value)
-                        // fmt.Printf("v: %+v \n", v)
-
                         // if sum of (distance of u, weight w(u, v)) is less than distance[v]
                         if (distances[u].Add(distances[u], v.PriceNegOfLog)).Cmp(distances[v.TokenOut]) < 0 {
                                 length[v.TokenOut] = length[u] + 1
@@ -260,6 +278,5 @@ func main() {
                         }
                 }
         }
-
-        fmt.Println("Finished")
+        fmt.Println("Finished", time.Since(start))
 }
