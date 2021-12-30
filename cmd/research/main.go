@@ -5,7 +5,6 @@ import (
 	"chainrunner/internal/mainnet"
 	"chainrunner/internal/memory"
 	"chainrunner/internal/util"
-	"container/list"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -193,15 +192,16 @@ func main() {
 
                 quotes = append(quotes, firstQuote, secondQuote)
         }
+
         fmt.Printf("[Create Edges]: Took %v to create edges for %v pairs \n", time.Since(now), len(pairs))
         fmt.Printf("[EDGE] Edge Count: %v, nodes: %v tokenToName: %v\n", len(quotes), nodes, len(tokenToName))
         fmt.Printf("[EDGE] Quotescount: %v, edgesFromTo: %v \n", len(quotes), len(edgesFromTo))
 
 
-		data, _ := json.MarshalIndent(edgesFromTo["WETH"], "", " ")
+	data, _ := json.MarshalIndent(edgesFromTo["WETH"], "", " ")
 
 
-		fmt.Println("DATA", string(data))
+	fmt.Println("DATA", string(data))
         // length (in amount of edges) of current shortest path from the source to u
         length := make(map[string]int64)
 
@@ -209,31 +209,38 @@ func main() {
         distances := make(map[string]*big.Float)
 
         // // FIFO Queue
-        queue := list.New()
+        // queue := list.New()
+
+        queue := &util.CustomQueue{
+                Queue: make([]string, 0),
+        }
 
         // // SFPA - START
         // // for each vertex, set initial distances to 0
         for token := range tokenToName {
                 length[token] = 0
                 distances[token] = new(big.Float).SetInt(zero)
-                queue.PushBack(token)
+
+                // queue.PushBack(token)
+                queue.Enqueue(token)
         }
 
         // // weight is price, u and v are tokenin and tokenout
-        for queue.Len() > 0 {
-                u := queue.Front()
+        for queue.Size() > 0 {
+                u, _ := queue.Front()
                 // fmt.Printf("u, %+v %T \n", u, u.Value)
                 queue.Remove(u)
                 // now, loop  over each edge (u,v) in Edges of the graph
 
                 for _, v := range edgesFromTo[u.Value.(string)] {
-                        //fmt.Printf("key, %+v\n", v)
-                        fmt.Printf("u: %+v \n", u.Value)
-                        fmt.Printf("v: %+v \n", v)
-                        //if sum of (distance of u, weight w(u, v)) is less than distance[v]
 
+                        // fmt.Printf("u: %+v \n", u.Value)
+                        // fmt.Printf("v: %+v \n", v)
+
+                        // if sum of (distance of u, weight w(u, v)) is less than distance[v]
                         if (distances[u.Value.(string)].Add(distances[u.Value.(string)], v.PriceNegOfLog)).Cmp(distances[v.TokenOut]) < 0 {
                                 length[v.TokenOut] = length[u.Value.(string)] + 1
+
                                 if length[v.TokenOut] < 0 {
                                         logger.Warn("Negative cycle!")
                                 }
