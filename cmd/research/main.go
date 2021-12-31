@@ -5,8 +5,6 @@ import (
 	"chainrunner/internal/mainnet"
 	"chainrunner/internal/memory"
 	"chainrunner/internal/util"
-	"container/list"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
@@ -62,22 +60,7 @@ func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, []co
         return reserves, pairAddresses, pairInfos
 }
 
-// calculate amount out given amount in, reserve0 and reserve1
-func GetAmountOut(amountIn *big.Int, reserve0 *big.Int, reserve1 *big.Int) (*big.Int, error) {
-        amountInWithFee := amountIn.Mul(amountIn, new(big.Int).SetInt64(997))
-        var numerator = new(big.Int)
-        var denominator = new(big.Int)
-        var amountOut = new(big.Int)
-
-        numerator = numerator.Mul(amountInWithFee, reserve1)
-        denominator = denominator.Add(reserve0.Mul(reserve0, new(big.Int).SetInt64(1000)), amountInWithFee)
-
-        amountOut = numerator.Div(numerator, denominator)
-
-        return amountOut, nil
-}
-
-// is this an edge?
+// Definition of an edge in uniswapv2 terms
 type price_quote struct {
         TokenIn       string
         TokenOut      string
@@ -90,8 +73,40 @@ type price_quote struct {
 // 3. Perform graph search algorithm
 // 4. log it if possible (dry run)
 
+// TODO: Finish stack code to trace a negative cycle
+// func TraceNegativeCycle(pre map[string]string, string v) ([]string) {
+//         for !Stack.contains(v) {
+//                 Stack.push(v)
+//                 v = pre[v]
+//         }
+
+//         cycle := make([]string)
+//         cycle = append(cycle, v)
+
+//         for Stack.top() != v {
+//                 cycle = append(Stack.pop())
+//         }
+//         cycle = append(cycle, v)
+
+//         return cycle
+// }
+
+
+// PSUEDOCODE TO DETECT CYCLE
+// 
+// bool dfs(int u) {
+//         vis[u] = true;
+//         on_stk[u] = true;
+//         for (int v : adj[u]) {
+//           if ((!vis[v] && dfs(v)) || on_stk[v])
+//             return true;
+//         on_stk[u] = false;
+//         return false;
+//       }
+//
+// PSUEDOCODE TO DETECT CYCLE
+
 func main() {
-        // init .env into program context
         godotenv.Load(".env")
 
         conn, err := ethclient.Dial(os.Getenv("INFURA_WS_URL"))
@@ -105,7 +120,6 @@ func main() {
                 fmt.Println("error initiating contract to query mass")
         }
 
-        // arbExplore(reserves, pairs, pairInfos)
         type pairData struct {
                 Address common.Address
                 Token0  struct {
@@ -120,11 +134,9 @@ func main() {
                 }
         }
 
-        // pairAddress -> pairInfo
-        // var pairInfoMappingmap map[common.Address]pairData
-        // [reserv0, reserve1, blockTimestampLast]
-
         reserves, pairs, pairInfos := getUniswapPairs(uniquery)
+
+        // we measure timefrom here (post data collection)
 
         logger.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
 
@@ -165,13 +177,13 @@ func main() {
                 one_token0 := new(big.Int).Exp(ten, big.NewInt(token0Decimals), nil)
                 one_token1 := new(big.Int).Exp(ten, big.NewInt(token1Decimals), nil)
 
-                price_0_to_1, err := GetAmountOut(one_token0, reserve0, reserve1)
+                price_0_to_1, err := util.GetAmountOut(one_token0, reserve0, reserve1)
 
                 if err != nil {
                         fmt.Println("comeback")
                 }
 
-                price_1_to_0, err := GetAmountOut(one_token1, reserve1, reserve0)
+                price_1_to_0, err := util.GetAmountOut(one_token1, reserve1, reserve0)
 
                 if err != nil {
                         fmt.Println("comeback")
@@ -207,54 +219,75 @@ func main() {
 
                 quotes = append(quotes, firstQuote, secondQuote)
         }
+
         fmt.Printf("[Create Edges]: Took %v to create edges for %v pairs \n", time.Since(now), len(pairs))
         fmt.Printf("[EDGE] Edge Count: %v, nodes: %v tokenToName: %v\n", len(quotes), nodes, len(tokenToName))
         fmt.Printf("[EDGE] Quotescount: %v, edgesFromTo: %v \n", len(quotes), len(edgesFromTo))
 
+	// data, _ := json.MarshalIndent(edgesFromTo["WETH"], "", " ")
 
-		data, _ := json.MarshalIndent(edgesFromTo["WETH"], "", " ")
+	// fmt.Println("DATA", string(data))
+        start := time.Now()
 
-
-		fmt.Println("DATA", string(data))
         // length (in amount of edges) of current shortest path from the source to u
         length := make(map[string]int64)
 
-        // // distance is the weight of the current shortest path from source to u
+        // distance is the weight of the current shortest path from source to u
         distances := make(map[string]*big.Float)
 
-        // // FIFO Queue
-        queue := list.New()
+        // pre[u] is the direct predecessor of u in the current shortest path
+        // update pre[v] whenever distance of u + weight < dis[v]
+        pre := make(map[string]string)
+
+        queue := &util.CustomQueue{
+                Queue: make([]string, 0),
+        }
 
         // // SFPA - START
         // // for each vertex, set initial distances to 0
         for token := range tokenToName {
                 length[token] = 0
                 distances[token] = new(big.Float).SetInt(zero)
-                queue.PushBack(token)
+
+                // queue.PushBack(token)
+                queue.Enqueue(token)
         }
 
+        iter := 0
+
         // // weight is price, u and v are tokenin and tokenout
-        for queue.Len() > 0 {
-                u := queue.Front()
-                // fmt.Printf("u, %+v %T \n", u, u.Value)
-                queue.Remove(u)
+        for !queue.Empty() {
+                u, _ := queue.Front()
+                // fmt.Printf("u, %+v %T \n", u, u)
+                queue.Dequeue()
                 // now, loop  over each edge (u,v) in Edges of the graph
 
-                for _, v := range edgesFromTo[u.Value.(string)] {
-                        //fmt.Printf("key, %+v\n", v)
-                        fmt.Printf("u: %+v \n", u.Value)
-                        fmt.Printf("v: %+v \n", v)
-                        //if sum of (distance of u, weight w(u, v)) is less than distance[v]
+                for _, v := range edgesFromTo[u] {
+                        // if sum of (distance of u, weight w(u, v)) is less than distance[v]
+                        var distance big.Float
+                        if (distance.Add(distances[u], v.PriceNegOfLog)).Cmp(distances[v.TokenOut]) == -1 {
+                                pre[v.TokenOut] = u
+                                length[v.TokenOut] = length[u] + 1
+                                
+                                var newDistance big.Float
+                                distances[v.TokenOut] = newDistance.Add(distances[u], v.PriceNegOfLog)
+                                iter += 1
 
-                        if (distances[u.Value.(string)].Add(distances[u.Value.(string)], v.PriceNegOfLog)).Cmp(distances[v.TokenOut]) < 0 {
-                                length[v.TokenOut] = length[u.Value.(string)] + 1
-                                if length[v.TokenOut] < 0 {
-                                        logger.Warn("Negative cycle!")
+                                if iter == len(tokenToName) {
+                                        iter = 0 
+                                        fmt.Println("Check negative cycle")
                                 }
 
-                                distances[v.TokenOut] = distances[u.Value.(string)].Add(distances[u.Value.(string)], v.PriceNegOfLog)
+                                // length[v.TokenOut] = length[u] + 1
+
+                                distances[v.TokenOut] = newDistance.Add(distances[u], v.PriceNegOfLog)
                                 //TODO: if Queue not containts v push it to queue
+
+                                if !queue.Contains(v.TokenOut) {
+                                        queue.Enqueue(v.TokenOut)
+                                }
                         }
                 }
         }
+        fmt.Println("Finished", time.Since(start))
 }
