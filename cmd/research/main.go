@@ -91,6 +91,21 @@ type price_quote struct {
 //         return cycle
 // }
 
+
+// PSUEDOCODE TO DETECT CYCLE
+// 
+// bool dfs(int u) {
+//         vis[u] = true;
+//         on_stk[u] = true;
+//         for (int v : adj[u]) {
+//           if ((!vis[v] && dfs(v)) || on_stk[v])
+//             return true;
+//         on_stk[u] = false;
+//         return false;
+//       }
+//
+// PSUEDOCODE TO DETECT CYCLE
+
 func main() {
         godotenv.Load(".env")
 
@@ -224,9 +239,6 @@ func main() {
         // update pre[v] whenever distance of u + weight < dis[v]
         pre := make(map[string]string)
 
-        // // FIFO Queue
-        // queue := list.New()
-
         queue := &util.CustomQueue{
                 Queue: make([]string, 0),
         }
@@ -244,9 +256,9 @@ func main() {
         iter := 0
 
         // // weight is price, u and v are tokenin and tokenout
-        for queue.Size() > 0 {
+        for !queue.Empty() {
                 u, _ := queue.Front()
-                fmt.Printf("u, %+v %T \n", u, u)
+                // fmt.Printf("u, %+v %T \n", u, u)
                 queue.Dequeue()
                 // now, loop  over each edge (u,v) in Edges of the graph
 
@@ -255,19 +267,20 @@ func main() {
                         var distance big.Float
                         if (distance.Add(distances[u], v.PriceNegOfLog)).Cmp(distances[v.TokenOut]) == -1 {
                                 pre[v.TokenOut] = u
-
+                                length[v.TokenOut] = length[u] + 1
+                                
                                 var newDistance big.Float
-
                                 distances[v.TokenOut] = newDistance.Add(distances[u], v.PriceNegOfLog)
-
                                 iter += 1
 
-                                length[v.TokenOut] = length[u] + 1
-
-                                if length[v.TokenOut] < 0 {
-                                        logger.Warn("Negative cycle!")
+                                if iter == len(tokenToName) {
+                                        iter = 0 
+                                        fmt.Println("Check negative cycle")
                                 }
 
+                                // length[v.TokenOut] = length[u] + 1
+
+                                distances[v.TokenOut] = newDistance.Add(distances[u], v.PriceNegOfLog)
                                 //TODO: if Queue not containts v push it to queue
 
                                 if !queue.Contains(v.TokenOut) {
