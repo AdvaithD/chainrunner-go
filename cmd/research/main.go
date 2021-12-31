@@ -140,6 +140,9 @@ func main() {
 
         logger.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
 
+        // id -> 'token name' mapping
+        tokenIdMap := make(map[int]string)
+
         // pair name -> address
         tokenToName := make(map[string]common.Address)
 
@@ -189,6 +192,7 @@ func main() {
                         fmt.Println("comeback")
                 }
 
+
                 // applying negative log
                 p0 := new(big.Float).SetInt(price_0_to_1)
                 p0.Quo(p0, new(big.Float).SetInt(one_token1))
@@ -224,70 +228,18 @@ func main() {
         fmt.Printf("[EDGE] Edge Count: %v, nodes: %v tokenToName: %v\n", len(quotes), nodes, len(tokenToName))
         fmt.Printf("[EDGE] Quotescount: %v, edgesFromTo: %v \n", len(quotes), len(edgesFromTo))
 
+
+        index := 0
+        loop := time.Now()
+        for key := range tokenToName {
+                tokenIdMap[index] = key
+                index++
+        }
+
+
+        fmt.Println("tokenIdMap", tokenIdMap)
 	// data, _ := json.MarshalIndent(edgesFromTo["WETH"], "", " ")
 
 	// fmt.Println("DATA", string(data))
-        start := time.Now()
-
-        // length (in amount of edges) of current shortest path from the source to u
-        length := make(map[string]int64)
-
-        // distance is the weight of the current shortest path from source to u
-        distances := make(map[string]*big.Float)
-
-        // pre[u] is the direct predecessor of u in the current shortest path
-        // update pre[v] whenever distance of u + weight < dis[v]
-        pre := make(map[string]string)
-
-        queue := &util.CustomQueue{
-                Queue: make([]string, 0),
-        }
-
-        // // SFPA - START
-        // // for each vertex, set initial distances to 0
-        for token := range tokenToName {
-                length[token] = 0
-                distances[token] = new(big.Float).SetInt(zero)
-
-                // queue.PushBack(token)
-                queue.Enqueue(token)
-        }
-
-        iter := 0
-
-        // // weight is price, u and v are tokenin and tokenout
-        for !queue.Empty() {
-                u, _ := queue.Front()
-                // fmt.Printf("u, %+v %T \n", u, u)
-                queue.Dequeue()
-                // now, loop  over each edge (u,v) in Edges of the graph
-
-                for _, v := range edgesFromTo[u] {
-                        // if sum of (distance of u, weight w(u, v)) is less than distance[v]
-                        var distance big.Float
-                        if (distance.Add(distances[u], v.PriceNegOfLog)).Cmp(distances[v.TokenOut]) == -1 {
-                                pre[v.TokenOut] = u
-                                length[v.TokenOut] = length[u] + 1
-                                
-                                var newDistance big.Float
-                                distances[v.TokenOut] = newDistance.Add(distances[u], v.PriceNegOfLog)
-                                iter += 1
-
-                                if iter == len(tokenToName) {
-                                        iter = 0 
-                                        fmt.Println("Check negative cycle")
-                                }
-
-                                // length[v.TokenOut] = length[u] + 1
-
-                                distances[v.TokenOut] = newDistance.Add(distances[u], v.PriceNegOfLog)
-                                //TODO: if Queue not containts v push it to queue
-
-                                if !queue.Contains(v.TokenOut) {
-                                        queue.Enqueue(v.TokenOut)
-                                }
-                        }
-                }
-        }
-        fmt.Println("Finished", time.Since(start))
+       
 }
