@@ -1,51 +1,87 @@
 package graph
 
 import (
-	"math"
+	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // Graph represents a graph consisting of edges and vertices
 type Graph struct {
 	edges    []*Edge
-	vertices []uint
+	vertices []int
+	tokenIdToName map[int]string //  0 -> eth, 1 -> wbtc
+	tokenNameToAddress map[string]common.Address // eth -> 0xabc, wbtc -> 0xbtc
+	tokenNameToId map[string]int
 }
+
+// get token name given an id
+func (g *Graph) GetTokenName(id int) string{
+	return g.tokenIdToName[id]
+}
+
+// get token address given symbol
+func (g *Graph) GetTokenAddr(name string) common.Address {
+	return g.tokenNameToAddress[name]
+}
+
+func (g *Graph) GetTokenId(name string) int {
+	return g.tokenNameToId[name]
+}
+
+// var infinity = new(big.Float).SetInf(true)
 
 // Edge represents a weighted line between two nodes
 type Edge struct {
-	From, To uint
-	Weight   float64
+	From, To int
+	Weight   *big.Float
 }
 
 // NewEdge returns a pointer to a new Edge
-func NewEdge(from, to uint, weight float64) *Edge {
+func NewEdge(from, to int, weight *big.Float) *Edge {
 	return &Edge{From: from, To: to, Weight: weight}
 }
 
 // NewGraph returns a graph consisting of given edges and vertices (vertices must count from 0 upwards)
-func NewGraph(edges []*Edge, vertices []uint) *Graph {
-	return &Graph{edges: edges, vertices: vertices}
+func NewGraph(
+	edges []*Edge,
+	vertices []int,
+	idToName map[int]string,
+	nameToAddr map[string]common.Address,
+	nameToId map[string]int) *Graph {
+
+	return &Graph{
+		edges: edges,
+		vertices: vertices,
+		tokenIdToName: idToName,
+		tokenNameToAddress: nameToAddr,
+		tokenNameToId: nameToId,
+	}
 }
 
 // FindArbitrageLoop returns either an arbitrage loop or a nil map
-func (g *Graph) FindArbitrageLoop(source uint) []uint {
+func (g *Graph) FindArbitrageLoop(source int) []int {
 	predecessors, distances := g.BellmanFord(source)
 	return g.FindNegativeWeightCycle(predecessors, distances, source)
 }
 
 // BellmanFord determines the shortest path and returns the predecessors and distances
-func (g *Graph) BellmanFord(source uint) ([]uint, []float64) {
+func (g *Graph) BellmanFord(source int) ([]int, []*big.Float) {
 	size := len(g.vertices)
-	distances := make([]float64, size)
-	predecessors := make([]uint, size)
+	distances := make([]*big.Float, size)
+	predecessors := make([]int, size)
+
 	for _, v := range g.vertices {
-		distances[v] = math.MaxFloat64
+		distances[v] = new(big.Float).SetInf(false)
 	}
-	distances[source] = 0
+
+	distances[source] = new(big.Float).SetInt64(0)
 
 	for i, changes := 0, 0; i < size-1; i, changes = i+1, 0 {
 		for _, edge := range g.edges {
-			if newDist := distances[edge.From] + edge.Weight; newDist < distances[edge.To] {
-				distances[edge.To] = newDist
+			var tempDist = new(big.Float)
+			if tempDist := tempDist.Add(distances[edge.From], edge.Weight); tempDist.Cmp(distances[edge.To]) == -1 {
+				distances[edge.To] = tempDist
 				predecessors[edge.To] = edge.From
 				changes++
 			}
@@ -58,26 +94,27 @@ func (g *Graph) BellmanFord(source uint) ([]uint, []float64) {
 }
 
 // FindNegativeWeightCycle finds a negative weight cycle from predecessors and a source
-func (g *Graph) FindNegativeWeightCycle(predecessors []uint, distances []float64, source uint) []uint {
+func (g *Graph) FindNegativeWeightCycle(predecessors []int, distances []*big.Float, source int) []int {
 	for _, edge := range g.edges {
-		if distances[edge.From]+edge.Weight < distances[edge.To] {
+		var tempBigFloat = new(big.Float)
+		if tempBigFloat := tempBigFloat.Add(distances[edge.From], edge.Weight); tempBigFloat.Cmp(distances[edge.To]) == -1 {
 			return arbitrageLoop(predecessors, source)
 		}
 	}
 	return nil
 }
 
-func arbitrageLoop(predecessors []uint, source uint) []uint {
+func arbitrageLoop(predecessors []int, source int) []int {
 	size := len(predecessors)
-	loop := make([]uint, size)
+	loop := make([]int, size)
 	loop[0] = source
 
 	exists := make([]bool, size)
 	exists[source] = true
 
-	indices := make([]uint, size)
+	indices := make([]int, size)
 
-	var index, next uint
+	var index, next int
 	for index, next = 1, source; ; index++ {
 		next = predecessors[next]
 		loop[index] = next
