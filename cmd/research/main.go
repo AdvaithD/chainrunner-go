@@ -2,6 +2,7 @@ package main
 
 import (
 	"chainrunner/bindings/uniquery"
+	"chainrunner/internal/graph"
 	"chainrunner/internal/mainnet"
 	"chainrunner/internal/memory"
 	"chainrunner/internal/util"
@@ -26,6 +27,8 @@ var (
         ten     = new(big.Int).SetInt64(10)
         zero    = new(big.Int).SetInt64(0)
         neg_one = new(big.Float).SetFloat64(-1)
+        inf       = new(big.Float).SetInf(true)
+
 )
 
 // Struct for id -> token (or) id -> pair address
@@ -207,15 +210,8 @@ func main() {
                 p1_neg_log.Mul(p1_neg_log, neg_one)
 
                 // create two quotes
-                firstQuote := price_quote{
-                        TokenIn: pair.Token0.Symbol, TokenOut: pair.Token1.Symbol,
-                        PriceInToOut: p0, PriceNegOfLog: p0_neg_log,
-                }
-
-                secondQuote := price_quote{
-                        TokenIn: pair.Token1.Symbol, TokenOut: pair.Token0.Symbol,
-                        PriceInToOut: p1, PriceNegOfLog: p1_neg_log,
-                }
+                firstEdge := graph.NewEdge(0, 0, p0_neg_log)
+                secondEdge = graph.NewEdge(0, 0, p1_neg_log)
 
                 // edges from a node mapping store
                 edgesFromTo[firstQuote.TokenIn] = append(edgesFromTo[firstQuote.TokenIn], firstQuote)
@@ -229,15 +225,15 @@ func main() {
         fmt.Printf("[EDGE] Quotescount: %v, edgesFromTo: %v \n", len(quotes), len(edgesFromTo))
 
 
+        // id counter
         index := 0
-        loop := time.Now()
+        // create unique indexes for tokens
         for key := range tokenToName {
                 tokenIdMap[index] = key
                 index++
         }
 
 
-        fmt.Println("tokenIdMap", tokenIdMap)
 	// data, _ := json.MarshalIndent(edgesFromTo["WETH"], "", " ")
 
 	// fmt.Println("DATA", string(data))
