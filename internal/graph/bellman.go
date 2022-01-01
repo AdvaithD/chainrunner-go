@@ -12,6 +12,7 @@ type Graph struct {
 	vertices []int
 	tokenIdToName map[int]string //  0 -> eth, 1 -> wbtc
 	tokenNameToAddress map[string]common.Address // eth -> 0xabc, wbtc -> 0xbtc
+	tokenNameToId map[string]int
 }
 
 // get token name given an id
@@ -23,6 +24,8 @@ func (g *Graph) GetTokenName(id int) string{
 func (g *Graph) GetTokenAddr(name string) common.Address {
 	return g.tokenNameToAddress[name]
 }
+
+func (g *Graph) GetTokenId(name string) 
 
 var infinity = new(big.Float).SetInf(true)
 
@@ -38,8 +41,20 @@ func NewEdge(from, to int, weight *big.Float) *Edge {
 }
 
 // NewGraph returns a graph consisting of given edges and vertices (vertices must count from 0 upwards)
-func NewGraph(edges []*Edge, vertices []int) *Graph {
-	return &Graph{edges: edges, vertices: vertices}
+func NewGraph(
+	edges []*Edge,
+	vertices []int,
+	idToName map[int]string,
+	nameToAddr map[string]common.Address,
+	nameToId map[string]int) *Graph {
+
+	return &Graph{
+		edges: edges,
+		vertices: vertices,
+		tokenIdToName: idToName,
+		tokenNameToAddress: nameToAddr,
+		tokenNameToId: nameToId
+	}
 }
 
 // FindArbitrageLoop returns either an arbitrage loop or a nil map
