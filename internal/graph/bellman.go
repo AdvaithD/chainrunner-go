@@ -25,7 +25,9 @@ func (g *Graph) GetTokenAddr(name string) common.Address {
 	return g.tokenNameToAddress[name]
 }
 
-func (g *Graph) GetTokenId(name string) 
+func (g *Graph) GetTokenId(name string) int {
+	return g.tokenNameToId[name]
+}
 
 var infinity = new(big.Float).SetInf(true)
 
@@ -53,7 +55,7 @@ func NewGraph(
 		vertices: vertices,
 		tokenIdToName: idToName,
 		tokenNameToAddress: nameToAddr,
-		tokenNameToId: nameToId
+		tokenNameToId: nameToId,
 	}
 }
 

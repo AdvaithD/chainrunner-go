@@ -167,7 +167,7 @@ func main() {
         // loop over pairs
         now := time.Now()
 
-        logger.Printf("tokenToName has %v\n", len(tokenToName))
+        logger.Printf("tokenToName has %v\n", len(tokenToAddr))
         logger.Printf("pairs user were %v\n", len(pairs))
 
         // create necessary token mappings (id to symbol, symbol to addr)
@@ -259,6 +259,10 @@ func main() {
 
         // create bellman graph using vertices and edges
         graph := graph.NewGraph(edges, vertices, tokenIdToName, tokenToAddr, tokenNameToId)
+
+        wethId := graph.GetTokenId("WETH")
+
+        fmt.Println("wethid: ",         wethId)
 
        
 }
