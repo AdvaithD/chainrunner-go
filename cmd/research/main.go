@@ -260,9 +260,16 @@ func main() {
         // create bellman graph using vertices and edges
         graph := graph.NewGraph(edges, vertices, tokenIdToName, tokenToAddr, tokenNameToId)
 
-        wethId := graph.GetTokenId("WETH")
+        wethId := graph.GetTokenId("USDC")
 
-        fmt.Println("wethid: ",         wethId)
+        fmt.Println("usdc id: ",         wethId)
 
+        loop := graph.FindArbitrageLoop(wethId)
+
+        for key := range loop {
+                fmt.Printf("%v -> ", graph.GetTokenName(key))
+        }
+
+        fmt.Println("\n\n loop: ", loop)
        
 }

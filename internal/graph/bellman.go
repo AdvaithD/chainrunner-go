@@ -29,7 +29,7 @@ func (g *Graph) GetTokenId(name string) int {
 	return g.tokenNameToId[name]
 }
 
-var infinity = new(big.Float).SetInf(true)
+// var infinity = new(big.Float).SetInf(true)
 
 // Edge represents a weighted line between two nodes
 type Edge struct {
@@ -70,14 +70,16 @@ func (g *Graph) BellmanFord(source int) ([]int, []*big.Float) {
 	size := len(g.vertices)
 	distances := make([]*big.Float, size)
 	predecessors := make([]int, size)
+
 	for _, v := range g.vertices {
-		distances[v] = infinity
+		distances[v] = new(big.Float).SetInf(false)
 	}
+
 	distances[source] = new(big.Float).SetInt64(0)
 
 	for i, changes := 0, 0; i < size-1; i, changes = i+1, 0 {
 		for _, edge := range g.edges {
-			var tempDist *big.Float
+			var tempDist = new(big.Float)
 			if tempDist := tempDist.Add(distances[edge.From], edge.Weight); tempDist.Cmp(distances[edge.To]) == -1 {
 				distances[edge.To] = tempDist
 				predecessors[edge.To] = edge.From
@@ -94,8 +96,8 @@ func (g *Graph) BellmanFord(source int) ([]int, []*big.Float) {
 // FindNegativeWeightCycle finds a negative weight cycle from predecessors and a source
 func (g *Graph) FindNegativeWeightCycle(predecessors []int, distances []*big.Float, source int) []int {
 	for _, edge := range g.edges {
-		var tempBigFloat *big.Float
-		if tempBigFloat.Add(distances[edge.From], edge.Weight).Cmp(distances[edge.To]) == -1 {
+		var tempBigFloat = new(big.Float)
+		if tempBigFloat := tempBigFloat.Add(distances[edge.From], edge.Weight); tempBigFloat.Cmp(distances[edge.To]) == -1 {
 			return arbitrageLoop(predecessors, source)
 		}
 	}
