@@ -71,44 +71,6 @@ type price_quote struct {
         PriceNegOfLog *big.Float
 }
 
-// 1. Get GraphQL pair data
-// 2. Create edges
-// 3. Perform graph search algorithm
-// 4. log it if possible (dry run)
-
-// TODO: Finish stack code to trace a negative cycle
-// func TraceNegativeCycle(pre map[string]string, string v) ([]string) {
-//         for !Stack.contains(v) {
-//                 Stack.push(v)
-//                 v = pre[v]
-//         }
-
-//         cycle := make([]string)
-//         cycle = append(cycle, v)
-
-//         for Stack.top() != v {
-//                 cycle = append(Stack.pop())
-//         }
-//         cycle = append(cycle, v)
-
-//         return cycle
-// }
-
-
-// PSUEDOCODE TO DETECT CYCLE
-// 
-// bool dfs(int u) {
-//         vis[u] = true;
-//         on_stk[u] = true;
-//         for (int v : adj[u]) {
-//           if ((!vis[v] && dfs(v)) || on_stk[v])
-//             return true;
-//         on_stk[u] = false;
-//         return false;
-//       }
-//
-// PSUEDOCODE TO DETECT CYCLE
-
 // helper to create an array with incremental range
 func makeRange(min, max int) []int {
         a := make([]int, max-min+1)
@@ -173,7 +135,7 @@ func main() {
         // create necessary token mappings (id to symbol, symbol to addr)
         utiltime := time.Now()
         // id counter
-        index := 0
+        index := 1 
         // create unique indexes for tokens
         for _, pair := range pairInfos.Data.Pairs {
                 // int -> symbol & symbol -> int
@@ -197,7 +159,7 @@ func main() {
                 tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
         }
 
-        vertices = makeRange(0, len(tokenToAddr) - 1)
+        vertices = makeRange(1, len(tokenToAddr))
         fmt.Println("util mapping creation time: ", time.Since(utiltime))
         // for each pair, create edges for all the pairs that we have
         for key, pair := range pairInfos.Data.Pairs {
@@ -227,7 +189,6 @@ func main() {
                         fmt.Println("comeback")
                 }
 
-
                 // applying negative log
                 p0 := new(big.Float).SetInt(price_0_to_1)
                 p0.Quo(p0, new(big.Float).SetInt(one_token1))
@@ -253,23 +214,26 @@ func main() {
         fmt.Printf("[EDGE] tokenIdToName: %v, tokenNameToId: %v, tokenToName: %v\n", len(tokenIdToName), len(tokenNameToId), len(tokenToAddr))
 
         // PRINT VALUES FOR MAPPINGS
-        // fmt.Println("tokenIdToName: ", tokenIdToName)
-        // fmt.Println("tokenNameToId: ", tokenNameToId)
+        fmt.Println("tokenIdToName: ", tokenIdToName)
+        fmt.Println("tokenNameToId: ", tokenNameToId)
         // fmt.Println("tokenToName: ", tokenToName)
 
         // create bellman graph using vertices and edges
         graph := graph.NewGraph(edges, vertices, tokenIdToName, tokenToAddr, tokenNameToId)
 
-        wethId := graph.GetTokenId("USDC")
+        inputTokens := []string{"WETH", "USDT", "WBTC", "USDC"}
 
-        fmt.Println("usdc id: ",         wethId)
+        for _, token := range inputTokens {
+                fmt.Println("token routes for: ", token)
+                tokenId := graph.GetTokenId(token)
+                fmt.Println("id: ", tokenId)
 
-        loop := graph.FindArbitrageLoop(wethId)
+                loop := graph.FindArbitrageLoop(tokenId)
 
-        for key := range loop {
-                fmt.Printf("%v -> ", graph.GetTokenName(key))
+                for _, key := range loop {
+                        fmt.Printf("%v -> ", graph.GetTokenName(key))
+                }
+
+                fmt.Printf("\n\n %v loop: %v \n\n", token, loop)
         }
-
-        fmt.Println("\n\n loop: ", loop)
-       
 }
