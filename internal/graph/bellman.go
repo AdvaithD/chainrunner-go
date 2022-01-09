@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -62,12 +63,15 @@ func NewGraph(
 // FindArbitrageLoop returns either an arbitrage loop or a nil map
 func (g *Graph) FindArbitrageLoop(source int) []int {
 	predecessors, distances := g.BellmanFord(source)
+
+	fmt.Println("predecessors: ", predecessors)
+	fmt.Println("distances: ", distances)
 	return g.FindNegativeWeightCycle(predecessors, distances, source)
 }
 
 // BellmanFord determines the shortest path and returns the predecessors and distances
 func (g *Graph) BellmanFord(source int) ([]int, []*big.Float) {
-	size := len(g.vertices) + 1
+	size := len(g.vertices)+1
 	distances := make([]*big.Float, size)
 	predecessors := make([]int, size)
 

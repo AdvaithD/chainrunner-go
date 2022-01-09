@@ -80,6 +80,15 @@ func makeRange(min, max int) []int {
         return a
     }
 
+// Get reserves, pairs, pairInfos
+// create tokenIdToName mapping
+// create tokenNameToId mapping
+// tokenToAddr mapping
+// edges variable to store all edges
+// verticed to store all vertices
+// for each pair 
+// check if toeknNamToId exists
+
 func main() {
         godotenv.Load(".env")
 
@@ -92,20 +101,6 @@ func main() {
         uniquery, err := uniquery.NewFlashBotsUniswapQuery(mainnet.UNIQUERY_ADDR, conn)
         if err != nil {
                 fmt.Println("error initiating contract to query mass")
-        }
-
-        type pairData struct {
-                Address common.Address
-                Token0  struct {
-                        Decimals uint8
-                        Address  *common.Address
-                        Symbol   *string
-                }
-                Token1 struct {
-                        Decimals *uint8
-                        Address  *common.Address
-                        Symbol   *string
-                }
         }
 
         reserves, pairs, pairInfos := getUniswapPairs(uniquery)
@@ -135,7 +130,7 @@ func main() {
         // create necessary token mappings (id to symbol, symbol to addr)
         utiltime := time.Now()
         // id counter
-        index := 1 
+        index := 0 
         // create unique indexes for tokens
         for _, pair := range pairInfos.Data.Pairs {
                 // int -> symbol & symbol -> int
@@ -155,11 +150,18 @@ func main() {
                 }
                 
                 // symbol -> addr
-                tokenToAddr[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
-                tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
+                _, exists := tokenToAddr[pair.Token0.Symbol]
+                if !exists {
+                        tokenToAddr[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
+                }
+
+                _, err := tokenToAddr[pair.Token0.Symbol]
+                if !err {
+                        tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
+                }
         }
 
-        vertices = makeRange(1, len(tokenToAddr))
+        vertices = makeRange(0, len(tokenToAddr))
         fmt.Println("util mapping creation time: ", time.Since(utiltime))
         // for each pair, create edges for all the pairs that we have
         for key, pair := range pairInfos.Data.Pairs {
@@ -214,16 +216,14 @@ func main() {
         fmt.Printf("[EDGE] tokenIdToName: %v, tokenNameToId: %v, tokenToName: %v\n", len(tokenIdToName), len(tokenNameToId), len(tokenToAddr))
 
         // PRINT VALUES FOR MAPPINGS
-        fmt.Println("tokenIdToName: ", tokenIdToName)
-        fmt.Println("tokenNameToId: ", tokenNameToId)
+        // fmt.Println("tokenIdToName: ", tjokenIdToName)
+        // fmt.Println("tokenNameToId: ", tokenNameToId)
         // fmt.Println("tokenToName: ", tokenToName)
-
-        // create bellman graph using vertices and edges
-        graph := graph.NewGraph(edges, vertices, tokenIdToName, tokenToAddr, tokenNameToId)
 
         inputTokens := []string{"WETH", "USDT", "WBTC", "USDC"}
 
         for _, token := range inputTokens {
+                graph := graph.NewGraph(edges, vertices, tokenIdToName, tokenToAddr, tokenNameToId)
                 fmt.Println("token routes for: ", token)
                 tokenId := graph.GetTokenId(token)
                 fmt.Println("id: ", tokenId)
