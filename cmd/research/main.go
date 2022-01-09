@@ -161,7 +161,7 @@ func main() {
                 }
         }
 
-        vertices = makeRange(0, len(tokenToAddr))
+        vertices = makeRange(0, len(tokenToAddr)-1)
         fmt.Println("util mapping creation time: ", time.Since(utiltime))
         // for each pair, create edges for all the pairs that we have
         for key, pair := range pairInfos.Data.Pairs {
@@ -214,6 +214,7 @@ func main() {
         fmt.Printf("[Create Edges]: Took %v to create edges for %v pairs \n", time.Since(now), len(pairs))
         fmt.Printf("[EDGE] Edge Count: %v, vertices: %v tokenToName: %v\n", len(edges), len(vertices), len(tokenToAddr))
         fmt.Printf("[EDGE] tokenIdToName: %v, tokenNameToId: %v, tokenToName: %v\n", len(tokenIdToName), len(tokenNameToId), len(tokenToAddr))
+        fmt.Printf("[EDGE] TokenNameToId: %+v \n", tokenNameToId)
 
         // PRINT VALUES FOR MAPPINGS
         // fmt.Println("tokenIdToName: ", tjokenIdToName)
