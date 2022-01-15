@@ -71,10 +71,11 @@ func (g *Graph) FindArbitrageLoop(source int) []int {
 
 // BellmanFord determines the shortest path and returns the predecessors and distances
 func (g *Graph) BellmanFord(source int) ([]int, []*big.Float) {
-	size := len(g.vertices)+1
+	size := len(g.vertices)
 	distances := make([]*big.Float, size)
 	predecessors := make([]int, size)
 
+    // 0, 1, 2, ...
 	for _, v := range g.vertices {
 		distances[v] = new(big.Float).SetInf(false)
 	}

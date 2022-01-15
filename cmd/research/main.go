@@ -28,7 +28,6 @@ var (
         zero    = new(big.Int).SetInt64(0)
         neg_one = new(big.Float).SetFloat64(-1)
         inf       = new(big.Float).SetInf(true)
-
 )
 
 // Struct for id -> token (or) id -> pair address
@@ -131,10 +130,11 @@ func main() {
         utiltime := time.Now()
         // id counter
         index := 0 
-        // create unique indexes for tokens
+
+        // create unique indexes / id for tokens and populate mappings
         for _, pair := range pairInfos.Data.Pairs {
                 // int -> symbol & symbol -> int
-                // token0 getter
+                // symbol -> id
                 _, ok := tokenNameToId[pair.Token0.Symbol]
                 if !ok {
                    tokenIdToName[index] = pair.Token0.Symbol
@@ -142,6 +142,7 @@ func main() {
                    index++
                 }
 
+                // symbol -> id
                 _, notexis := tokenNameToId[pair.Token1.Symbol]
                 if !notexis {
                    tokenIdToName[index] = pair.Token1.Symbol
@@ -149,19 +150,21 @@ func main() {
                    index++
                 }
                 
-                // symbol -> addr
+                // symbol1 -> addr
                 _, exists := tokenToAddr[pair.Token0.Symbol]
                 if !exists {
                         tokenToAddr[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
                 }
 
+                // symbol2 -> addr
                 _, err := tokenToAddr[pair.Token0.Symbol]
                 if !err {
                         tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
                 }
         }
 
-        vertices = makeRange(0, len(tokenToAddr)-1)
+        // vertices start from 0, 1,2, 3,....
+        vertices = makeRange(0, len(tokenIdToName)-1)
         fmt.Println("util mapping creation time: ", time.Since(utiltime))
         // for each pair, create edges for all the pairs that we have
         for key, pair := range pairInfos.Data.Pairs {
@@ -224,15 +227,15 @@ func main() {
         inputTokens := []string{"WETH", "USDT", "WBTC", "USDC"}
 
         for _, token := range inputTokens {
-                graph := graph.NewGraph(edges, vertices, tokenIdToName, tokenToAddr, tokenNameToId)
+                arber := graph.NewGraph(edges, vertices, tokenIdToName, tokenToAddr, tokenNameToId)
                 fmt.Println("token routes for: ", token)
-                tokenId := graph.GetTokenId(token)
+                tokenId := arber.GetTokenId(token)
                 fmt.Println("id: ", tokenId)
 
-                loop := graph.FindArbitrageLoop(tokenId)
+                loop := arber.FindArbitrageLoop(tokenId)
 
                 for _, key := range loop {
-                        fmt.Printf("%v -> ", graph.GetTokenName(key))
+                        fmt.Printf("%v -> ", arber.GetTokenName(key))
                 }
 
                 fmt.Printf("\n\n %v loop: %v \n\n", token, loop)
