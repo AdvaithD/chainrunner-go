@@ -115,7 +115,7 @@ func main() {
 
 	// load env variables
         godotenv.Load(".env")
-        conn, err := ethclient.Dial(os.Getenv("INFURA_WS_URL"))
+        conn, err := ethclient.Dial(os.Getenv("GETH_IPC_PATH"))
         if err != nil {
                 log.Fatalf("Failed to connect to the Ethereum client: %v", err)
         }
