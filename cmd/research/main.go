@@ -6,10 +6,13 @@ import (
 	"chainrunner/internal/mainnet"
 	"chainrunner/internal/memory"
 	"chainrunner/internal/util"
+	"flag"
 	"fmt"
 	"log"
 	"math/big"
 	"os"
+	"runtime"
+	"runtime/pprof"
 
 	"strconv"
 	"time"
@@ -88,9 +91,30 @@ func makeRange(min, max int) []int {
 // for each pair 
 // check if toeknNamToId exists
 
-func main() {
-        godotenv.Load(".env")
 
+// profiling flags `cpuprofile` and `memprofile`
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
+var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
+
+func main() {
+    flag.Parse()
+    if *cpuprofile != "" {
+        f, err := os.Create(*cpuprofile)
+        if err != nil {
+            log.Fatal("could not create CPU profile: ", err)
+        }
+        defer f.Close()
+        if err := pprof.StartCPUProfile(f); err != nil {
+            log.Fatal("could not start CPU profile: ", err)
+        }
+        defer pprof.StopCPUProfile()
+    }
+
+    // ... rest of the program ...
+
+
+	// load env variables
+        godotenv.Load(".env")
         conn, err := ethclient.Dial(os.Getenv("INFURA_WS_URL"))
         if err != nil {
                 log.Fatalf("Failed to connect to the Ethereum client: %v", err)
@@ -240,4 +264,18 @@ func main() {
 
                 fmt.Printf("\n\n %v loop: %v \n\n", token, loop)
         }
+
+// memprofile
+
+    if *memprofile != "" {
+        f, err := os.Create(*memprofile)
+        if err != nil {
+            log.Fatal("could not create memory profile: ", err)
+        }
+        defer f.Close()
+        runtime.GC() // get up-to-date statistics
+        if err := pprof.WriteHeapProfile(f); err != nil {
+            log.Fatal("could not write memory profile: ", err)
+        }
+    }
 }
