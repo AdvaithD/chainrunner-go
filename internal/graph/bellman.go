@@ -73,7 +73,7 @@ func (g *Graph) FindArbitrageLoop(source int) []int {
 func (g *Graph) BellmanFord(source int) ([]int, []*big.Float) {
 	size := len(g.vertices)
 	distances := make([]*big.Float, size)
-	predecessors := make([]int, size)
+	predecessors := make([]*int, size)
 
     // 0, 1, 2, ...
 	for _, v := range g.vertices {

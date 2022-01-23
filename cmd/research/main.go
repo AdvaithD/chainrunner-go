@@ -217,7 +217,7 @@ func main() {
         fmt.Printf("[Create Edges]: Took %v to create edges for %v pairs \n", time.Since(now), len(pairs))
         fmt.Printf("[EDGE] Edge Count: %v, vertices: %v tokenToName: %v\n", len(edges), len(vertices), len(tokenToAddr))
         fmt.Printf("[EDGE] tokenIdToName: %v, tokenNameToId: %v, tokenToName: %v\n", len(tokenIdToName), len(tokenNameToId), len(tokenToAddr))
-        fmt.Printf("[EDGE] TokenNameToId: %+v \n", tokenNameToId)
+        // fmt.Printf("[EDGE] TokenNameToId: %+v \n", tokenNameToId)
 
         // PRINT VALUES FOR MAPPINGS
         // fmt.Println("tokenIdToName: ", tjokenIdToName)
