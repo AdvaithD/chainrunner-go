@@ -62,6 +62,9 @@ func NewGraph(
 // FindArbitrageLoop returns either an arbitrage loop or a nil map
 func (g *Graph) FindArbitrageLoop(source int) []int {
 	predecessors, distances := g.BellmanFord(source)
+
+	// fmt.Println("predecessors: ", predecessors)
+	// fmt.Println("distances: ", distances)
 	return g.FindNegativeWeightCycle(predecessors, distances, source)
 }
 
@@ -71,6 +74,7 @@ func (g *Graph) BellmanFord(source int) ([]int, []*big.Float) {
 	distances := make([]*big.Float, size)
 	predecessors := make([]int, size)
 
+    // 0, 1, 2, ...
 	for _, v := range g.vertices {
 		distances[v] = new(big.Float).SetInf(false)
 	}
