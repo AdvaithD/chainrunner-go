@@ -1,3 +1,7 @@
-query getPairDatas() {
-    
+query getPairs($pairs: [Address!]) {
+  logs(filter: { addresses: $pairs}) {
+    account { 
+      storage(slot: "0x0000000000000000000000000000000000000000000000000000000000000008") 
+    }
+  }
 }
