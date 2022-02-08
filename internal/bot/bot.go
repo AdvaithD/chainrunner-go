@@ -160,9 +160,34 @@ type PoolReserve struct {
 	reserve1 *big.Int
 }
 
+func (p *PoolReserve) IncreaseR0(amount *big.Int) {
+	newReserve := new(big.Int)
+	newReserve.Add(p.reserve0, amount)
+	p.reserve0 = newReserve
+}
+
+func (p *PoolReserve) DecreaseR0(amount *big.Int) {
+	newReserve := new(big.Int)
+	newReserve.Sub(p.reserve0, amount)
+	p.reserve0 = newReserve
+}
+
+func (p *PoolReserve) IncreaseR1(amount *big.Int) {
+	newReserve := new(big.Int)
+	newReserve.Add(p.reserve0, amount)
+	p.reserve0 = newReserve
+}
+
+func (p *PoolReserve) DecreaseR1(amount *big.Int) {
+	newReserve := new(big.Int)
+	newReserve.Sub(p.reserve0, amount)
+	p.reserve0 = newReserve
+}
+
 // Creates edges given reserves and pairs
 func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenNameToId map[string]int) []*graph.Edge {
 	var wg sync.WaitGroup
+	var mu = &sync.Mutex{}
 	defer util.Duration(util.Track("CreateEdges-1000"))
 
 	var edges []*graph.Edge
@@ -183,6 +208,7 @@ func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.Uniswa
 				Symbol   string `json:"symbol"`
 			} `json:"token1"`
 		}) {
+			defer wg.Done()
 			reserve0 := reserves[common.HexToAddress(pair.Address)].reserve0
 			reserve1 := reserves[common.HexToAddress(pair.Address)].reserve1
 
@@ -226,8 +252,9 @@ func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.Uniswa
 			firstEdge := graph.NewEdge(tokenNameToId[pair.Token0.Symbol], tokenNameToId[pair.Token1.Symbol], p0_neg_log)
 			secondEdge := graph.NewEdge(tokenNameToId[pair.Token1.Symbol], tokenNameToId[pair.Token0.Symbol], p1_neg_log)
 
+			mu.Lock()
 			edges = append(edges, firstEdge, secondEdge)
-			wg.Done()
+			mu.Unlock()
 		}(pair)
 	}
 	wg.Wait()
@@ -334,6 +361,7 @@ func (b *Bot) Run() (e error) {
 			log.Info("Time Elapsed", "average", avg)
 			log.Info("---------------------------------------")
 		}
+
 	})
 
 	return g.Wait()
