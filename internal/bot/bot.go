@@ -1,21 +1,23 @@
 package bot
 
 import (
+	"chainrunner/internal/util"
+	"context"
 	"encoding/json"
 	"flag"
-	"log"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/ethereum/go-ethereum/ethclient"
+	log "github.com/inconshreveable/log15"
 	"github.com/syndtr/goleveldb/leveldb"
 	"golang.org/x/sync/errgroup"
 )
 
 var (
-	enable_pprof  = flag.Bool("pprof", false, "pprof profiling")
 	repl_mode = flag.Bool(
 		"repl_mode", false, "repl mode to inspect DB",
 	)
@@ -28,10 +30,10 @@ const (
 )
 
 type clients struct {
-	newBlock      *ethclient.Client
-	uniswap       *ethclient.Client
-	sushiswap     *ethclient.Client
-	otherwise     *ethclient.Client
+	primary   *ethclient.Client
+	uniswap   *ethclient.Client
+	sushiswap *ethclient.Client
+	otherwise *ethclient.Client
 }
 
 type ReportMessage struct {
@@ -50,7 +52,7 @@ type report_logs struct {
 
 type Bot struct {
 	db                  *leveldb.DB
-	clients 			clients
+	clients             clients
 	shutdown            chan struct{}
 	log_update_incoming report_logs
 }
@@ -62,7 +64,7 @@ func NewBot(db_path, client_path string) (*Bot, error) {
 		return nil, err
 	}
 
-	newBlockClient, err := ethclient.Dial(client_path)
+	primaryClient, err := ethclient.Dial(client_path)
 
 	if err != nil {
 		return nil, err
@@ -88,8 +90,8 @@ func NewBot(db_path, client_path string) (*Bot, error) {
 
 	return &Bot{
 		clients: clients{
-			newBlock: newBlockClient,
-			uniswap: uniswapClient,
+			primary:   primaryClient,
+			uniswap:   uniswapClient,
 			sushiswap: sushiSwapClient,
 			otherwise: client,
 		},
@@ -99,12 +101,12 @@ func NewBot(db_path, client_path string) (*Bot, error) {
 			make(chan *ReportMessage),
 		},
 		shutdown: make(chan struct{}),
-		db: db,
+		db:       db,
 	}, nil
 }
 
-func(b *Bot) CloseResources() error {
-	b.clients.newBlock.Close()
+func (b *Bot) CloseResources() error {
+	b.clients.primary.Close()
 	b.clients.otherwise.Close()
 	b.clients.uniswap.Close()
 	b.clients.sushiswap.Close()
@@ -119,7 +121,7 @@ func (b *Bot) KickoffFailureLogs(file_used string, failures chan *ReportMessage)
 		log.Println("come back to this")
 		return
 	}
-	
+
 	for {
 		select {
 		case <-b.shutdown:
@@ -128,12 +130,12 @@ func (b *Bot) KickoffFailureLogs(file_used string, failures chan *ReportMessage)
 		case msg := <-failures:
 			s, err := json.MarshalIndent(msg, "", "\t")
 			if err != nil {
-				log.Println("come back to this")
+				log.Error("come back to this")
 				return
 			}
 
 			if _, err := f.Write(s); err != nil {
-				log.Println("some error on writing to "+file_used, err)
+				log.Error("some error on writing to "+file_used, err)
 				f.Close()
 				return
 			}
@@ -143,15 +145,12 @@ func (b *Bot) KickoffFailureLogs(file_used string, failures chan *ReportMessage)
 	}
 }
 
-func(b *Bot) Run() (e error) {
+// Run the bot
+func (b *Bot) Run() (e error) {
 	var g errgroup.Group
 
 	go b.KickoffFailureLogs(ESTIMATE_GAS_FAIL, b.log_update_incoming.estimate_fail_log)
 	go b.KickoffFailureLogs(REASONS_NOT_WORTH_IT, b.log_update_incoming.not_worth_it_log)
-
-	// g.Go(func() error {
-	// 	return nil
-	// })
 
 	g.Go(func() error {
 		interrupt := make(chan os.Signal)
@@ -162,6 +161,31 @@ func(b *Bot) Run() (e error) {
 		close(b.shutdown)
 		time.Sleep(time.Second * 2)
 		return nil
+	})
+
+	// start here
+	g.Go(func() error {
+		for {
+			start := time.Now()
+
+			pairs := util.Get1000Pairs()
+
+			res, err := b.clients.primary.GetReservesSlots(context.Background(), pairs, nil)
+			if err != nil {
+				log.Error("ERROR Getting reserves", "error", err)
+				panic("exiting")
+			}
+
+			fmt.Println("GOT")
+			fmt.Printf("%T \n", res)
+
+			elapsed := time.Since(start)
+			log.Info("Time Elapsed", "iteration", elapsed)
+			i++
+			avg = avg*(i-1)/i + elapsed.Seconds()*1/i
+			log.Info("Time Elapsed", "average", avg)
+			log.Info("---------------------------------------")
+		}
 	})
 
 	return g.Wait()
