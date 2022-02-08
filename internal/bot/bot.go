@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"chainrunner/internal/graph"
 	"chainrunner/internal/util"
 	"context"
 	"encoding/json"
@@ -184,14 +183,45 @@ func (p *PoolReserve) DecreaseR1(amount *big.Int) {
 	p.reserve0 = newReserve
 }
 
+// Adjacency list implementation
+type AdjGraph struct {
+	vertices int
+	adgeList [][]int
+	weights  map[int]map[int]*big.Float
+}
+
+func GetAdjGraph(vertices int) *AdjGraph {
+	var me *AdjGraph = &AdjGraph{}
+	me.vertices = vertices
+	me.adgeList = make([][]int, vertices)
+	me.weights = make(map[int]map[int]*big.Float)
+	for i := 0; i < me.vertices; i++ {
+		me.adgeList = append(me.adgeList)
+	}
+	return me
+}
+
+func (this *AdjGraph) addEdge(u, v int, w *big.Float) {
+	if u < 0 || u >= this.vertices || v < 0 || v >= this.vertices {
+		return
+	}
+	// add node edge
+	this.adgeList[u] = append(this.adgeList[u], v)
+	// add node weight
+	if this.weights[u][v] == nil {
+		this.weights[u] = make(map[int]*big.Float)
+		this.weights[u][v] = w
+	}
+}
+
 // Creates edges given reserves and pairs
-func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenNameToId map[string]int) []*graph.Edge {
+func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenNameToId map[string]int) *AdjGraph {
 	var wg sync.WaitGroup
 	var mu = &sync.Mutex{}
 	defer util.Duration(util.Track("CreateEdges-1000"))
-
-	var edges []*graph.Edge
 	log.Info("Creating edges")
+
+	graph := GetAdjGraph(len(tokenNameToId))
 
 	for _, pair := range pairInfos.Data.Pairs {
 		wg.Add(1)
@@ -207,7 +237,7 @@ func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.Uniswa
 				Address  string `json:"id"`
 				Symbol   string `json:"symbol"`
 			} `json:"token1"`
-		}) {
+		}, graphWrapper *AdjGraph) {
 			defer wg.Done()
 			reserve0 := reserves[common.HexToAddress(pair.Address)].reserve0
 			reserve1 := reserves[common.HexToAddress(pair.Address)].reserve1
@@ -248,17 +278,20 @@ func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.Uniswa
 			p1_neg_log := bigfloat.Log(p1)
 			p1_neg_log.Mul(p1_neg_log, neg_one)
 
-			// create two quotes
-			firstEdge := graph.NewEdge(tokenNameToId[pair.Token0.Symbol], tokenNameToId[pair.Token1.Symbol], p0_neg_log)
-			secondEdge := graph.NewEdge(tokenNameToId[pair.Token1.Symbol], tokenNameToId[pair.Token0.Symbol], p1_neg_log)
+			// create two quotes (u, v, w) two vertices by names and w is weigth
+			token0Id := tokenNameToId[pair.Token0.Symbol]
+			token1Id := tokenNameToId[pair.Token1.Symbol]
 
 			mu.Lock()
-			edges = append(edges, firstEdge, secondEdge)
+
+			graph.addEdge(token0Id, token1Id, p0_neg_log)
+			graph.addEdge(token1Id, token0Id, p1_neg_log)
+
 			mu.Unlock()
-		}(pair)
+		}(pair, graph)
 	}
 	wg.Wait()
-	return edges
+	return graph
 }
 
 // Run the bot
@@ -321,6 +354,7 @@ func (b *Bot) Run() (e error) {
 				tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
 			}
 		}
+		log.Info("Number of Tokens", "tokenNameToId", len(tokenNameToId))
 
 		// loop analytics
 		i := float64(0)
@@ -332,11 +366,22 @@ func (b *Bot) Run() (e error) {
 
 			// get reserves slots
 			res, err := b.clients.primary.GetReservesSlots(context.Background(), addresses, nil)
+
 			if err != nil {
 				log.Error("ERROR Getting reserves", "error", err)
 				panic("exiting")
 			}
+
 			log.Info("Reserves", "Got pairs", len(res))
+
+			simulation, err := b.clients.otherwise.SimulateMempool(context.Background(), 5000)
+
+			if err != nil {
+				log.Error("error simulating mempool", "error", err)
+				panic("exiting")
+			}
+
+			log.Info("Simulation", "simulation length", len(simulation))
 
 			reserves := make(map[common.Address]*PoolReserve)
 
@@ -348,9 +393,9 @@ func (b *Bot) Run() (e error) {
 				}
 			}
 
-			edges := CreateEdges(reserves, pairInfos, tokenNameToId)
+			CreateEdges(reserves, pairInfos, tokenNameToId)
 
-			log.Info("Got edges", "count", len(edges))
+			// log.Info("Got edges", "count", len(edges))
 			log.Info("Finished creating latest reserves mapping")
 
 			// LOOP END

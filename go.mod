@@ -6,8 +6,10 @@ require (
 	github.com/ALTree/bigfloat v0.0.0-20201218142103-4a33235224ec
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/ethereum/go-ethereum v0.0.0-local
+	github.com/google/pprof v0.0.0-20220128192902-513e8ac6eea1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/holiman/uint256 v1.2.0 // indirect
+	github.com/ianlancetaylor/demangle v0.0.0-20220203202831-b7f99f1dbc96 // indirect
 	github.com/inconshreveable/log15 v0.0.0-20201112154412-8562bdadbbac
 	github.com/joho/godotenv v1.4.0
 	github.com/machinebox/graphql v0.2.2
