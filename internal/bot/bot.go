@@ -118,7 +118,7 @@ func (b *Bot) KickoffFailureLogs(file_used string, failures chan *ReportMessage)
 	f, err := os.OpenFile(file_used, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 
 	if err != nil {
-		log.Println("come back to this")
+		log.Debug("come back to this")
 		return
 	}
 
@@ -163,12 +163,15 @@ func (b *Bot) Run() (e error) {
 		return nil
 	})
 
+	// pairs logic
+	pairs := util.Get1000Pairs()
+
 	// start here
 	g.Go(func() error {
+		i := float64(0)
+		avg := float64(0)
 		for {
 			start := time.Now()
-
-			pairs := util.Get1000Pairs()
 
 			res, err := b.clients.primary.GetReservesSlots(context.Background(), pairs, nil)
 			if err != nil {
