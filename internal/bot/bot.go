@@ -297,6 +297,8 @@ func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.Uniswa
 // Run the bot
 func (b *Bot) Run() (e error) {
 	var g errgroup.Group
+	// uncomment while inspecting simulation stuff
+	// gwei, _, _ := big.ParseFloat("1e9", 10, 0, big.ToNearestEven)
 
 	go b.KickoffFailureLogs(ESTIMATE_GAS_FAIL, b.log_update_incoming.estimate_fail_log)
 	go b.KickoffFailureLogs(REASONS_NOT_WORTH_IT, b.log_update_incoming.not_worth_it_log)
@@ -385,7 +387,18 @@ func (b *Bot) Run() (e error) {
 
 			reserves := make(map[common.Address]*PoolReserve)
 
+			// TODO: We need to store backrunnable shit here somewhere
 			for poolAddress, rawReserve := range res {
+				if val, ok := simulation[poolAddress]; ok {
+					log.Info("Overriding pool", "address", poolAddress)
+					fmt.Println(val)
+					for _, simulatedReserves := range val {
+						reserves[poolAddress] = &PoolReserve{
+							reserve0: simulatedReserves[0].Reserve0,
+							reserve1: simulatedReserves[0].Reserve1,
+						}
+					}
+				}
 				res0, res1 := util.DeriveReservesFromSlot(rawReserve.String())
 				reserves[poolAddress] = &PoolReserve{
 					reserve0: res0,
@@ -394,6 +407,14 @@ func (b *Bot) Run() (e error) {
 			}
 
 			CreateEdges(reserves, pairInfos, tokenNameToId)
+
+			// Code that inspects simulation data
+			// for address, gasReserveMap := range res {
+			// 	for gasPrice, reserves := range gasReserveMap {
+			// 		// log.Info("Possible Backrun", "Address", address, "Gas Price", new(big.Float).Quo(new(big.Float).SetUint64(uint64(gasPrice)), gwei), "Reserve", reserves) // "Reserve0", reserve0Float, "Reserve1", reserve1Float)
+			// 		log.Info("Possible Backrun", "Gas Price", new(big.Float).Quo(new(big.Float).SetUint64(uint64(gasPrice)), gwei), "Reserve", reserves) // "Reserve0", reserve0Float, "Reserve1", reserve1Float)
+			// 	}
+			// }
 
 			// log.Info("Got edges", "count", len(edges))
 			log.Info("Finished creating latest reserves mapping")
