@@ -110,9 +110,6 @@ func main() {
         defer pprof.StopCPUProfile()
     }
 
-    // ... rest of the program ...
-
-
 	// load env variables
         godotenv.Load(".env")
         conn, err := ethclient.Dial(os.Getenv("GETH_IPC_PATH"))
