@@ -7,6 +7,7 @@ require (
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/ethereum/go-ethereum v0.0.0-local
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/holiman/uint256 v1.2.0 // indirect
 	github.com/inconshreveable/log15 v0.0.0-20201112154412-8562bdadbbac
 	github.com/joho/godotenv v1.4.0
 	github.com/machinebox/graphql v0.2.2

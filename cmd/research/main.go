@@ -27,60 +27,60 @@ import (
 )
 
 var (
-        ten     = new(big.Int).SetInt64(10)
-        zero    = new(big.Int).SetInt64(0)
-        neg_one = new(big.Float).SetFloat64(-1)
-        inf       = new(big.Float).SetInf(true)
+	ten     = new(big.Int).SetInt64(10)
+	zero    = new(big.Int).SetInt64(0)
+	neg_one = new(big.Float).SetFloat64(-1)
+	inf     = new(big.Float).SetInf(true)
 )
 
 // Struct for id -> token (or) id -> pair address
 type Arber struct {
-        tokens   map[uint]common.Address
-        pairs    map[uint]common.Address
-        pairInfo map[common.Address]*memory.Pair
+	tokens   map[uint]common.Address
+	pairs    map[uint]common.Address
+	pairInfo map[common.Address]*memory.Pair
 }
 
 // get uniswap pairs to bootstrap reserves data
 func getUniswapPairs(query *uniquery.FlashBotsUniswapQuery) ([][3]*big.Int, []common.Address, util.UniswapPairs) {
-        defer util.Duration(util.Track("getUniswapPairsAndReserves-5000"))
+	defer util.Duration(util.Track("getUniswapPairsAndReserves-5000"))
 
-        pairInfos, err := util.GetUniswapPairs()
+	pairInfos, err := util.GetUniswapPairs()
 
-        if err != nil {
-                fmt.Println("err getting graphql pairdata")
-        }
-        pairAddresses := make([]common.Address, 0)
+	if err != nil {
+		fmt.Println("err getting graphql pairdata")
+	}
+	pairAddresses := make([]common.Address, 0)
 
-        for _, pair := range pairInfos.Data.Pairs {
-                pairAddresses = append(pairAddresses, common.HexToAddress(pair.Address))
-        }
+	for _, pair := range pairInfos.Data.Pairs {
+		pairAddresses = append(pairAddresses, common.HexToAddress(pair.Address))
+	}
 
-        reserves, err := query.GetReservesByPairs(&bind.CallOpts{Context: nil}, pairAddresses)
+	reserves, err := query.GetReservesByPairs(&bind.CallOpts{Context: nil}, pairAddresses)
 
-        if err != nil {
-                logger.Error("err getting reserves", err)
-        }
+	if err != nil {
+		logger.Error("err getting reserves", err)
+	}
 
-        // fmt.Printf("%V \n", res)
-        return reserves, pairAddresses, pairInfos
+	// fmt.Printf("%V \n", res)
+	return reserves, pairAddresses, pairInfos
 }
 
 // Definition of an edge in uniswapv2 terms
 type price_quote struct {
-        TokenIn       string
-        TokenOut      string
-        PriceInToOut  *big.Float
-        PriceNegOfLog *big.Float
+	TokenIn       string
+	TokenOut      string
+	PriceInToOut  *big.Float
+	PriceNegOfLog *big.Float
 }
 
 // helper to create an array with incremental range
 func makeRange(min, max int) []int {
-        a := make([]int, max-min+1)
-        for i := range a {
-            a[i] = min + i
-        }
-        return a
-    }
+	a := make([]int, max-min+1)
+	for i := range a {
+		a[i] = min + i
+	}
+	return a
+}
 
 // Get reserves, pairs, pairInfos
 // create tokenIdToName mapping
@@ -88,191 +88,190 @@ func makeRange(min, max int) []int {
 // tokenToAddr mapping
 // edges variable to store all edges
 // verticed to store all vertices
-// for each pair 
+// for each pair
 // check if toeknNamToId exists
-
 
 // profiling flags `cpuprofile` and `memprofile`
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to `file`")
 var memprofile = flag.String("memprofile", "", "write memory profile to `file`")
 
 func main() {
-    flag.Parse()
-    if *cpuprofile != "" {
-        f, err := os.Create(*cpuprofile)
-        if err != nil {
-            log.Fatal("could not create CPU profile: ", err)
-        }
-        defer f.Close()
-        if err := pprof.StartCPUProfile(f); err != nil {
-            log.Fatal("could not start CPU profile: ", err)
-        }
-        defer pprof.StopCPUProfile()
-    }
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
 
 	// load env variables
-        godotenv.Load(".env")
-        conn, err := ethclient.Dial(os.Getenv("GETH_IPC_PATH"))
-        if err != nil {
-                log.Fatalf("Failed to connect to the Ethereum client: %v", err)
-        }
+	godotenv.Load(".env")
+	conn, err := ethclient.Dial(os.Getenv("GETH_IPC_PATH"))
+	if err != nil {
+		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
+	}
 
-        // query the contract
-        uniquery, err := uniquery.NewFlashBotsUniswapQuery(mainnet.UNIQUERY_ADDR, conn)
-        if err != nil {
-                fmt.Println("error initiating contract to query mass")
-        }
+	// query the contract
+	uniquery, err := uniquery.NewFlashBotsUniswapQuery(mainnet.UNIQUERY_ADDR, conn)
+	if err != nil {
+		fmt.Println("error initiating contract to query mass")
+	}
 
-        reserves, pairs, pairInfos := getUniswapPairs(uniquery)
+	reserves, pairs, pairInfos := getUniswapPairs(uniquery)
 
-        // we measure timefrom here (post data collection)
+	// we measure timefrom here (post data collection)
 
-        logger.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
+	logger.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
 
-        // id -> 'token name' mapping
-        tokenIdToName := make(map[int]string)
-        // name -> id
-        tokenNameToId := make(map[string]int)
-        // pair name -> address
-        tokenToAddr := make(map[string]common.Address)
+	// id -> 'token name' mapping
+	tokenIdToName := make(map[int]string)
+	// name -> id
+	tokenNameToId := make(map[string]int)
+	// pair name -> address
+	tokenToAddr := make(map[string]common.Address)
 
-        // bellman edges
-        var edges []*graph.Edge
+	// bellman edges
+	var edges []*graph.Edge
 
-        // bellman vertices
-        var vertices []int
-        // loop over pairs
-        now := time.Now()
+	// bellman vertices
+	var vertices []int
+	// loop over pairs
+	now := time.Now()
 
-        logger.Printf("tokenToName has %v\n", len(tokenToAddr))
-        logger.Printf("pairs user were %v\n", len(pairs))
+	logger.Printf("tokenToName has %v\n", len(tokenToAddr))
+	logger.Printf("pairs user were %v\n", len(pairs))
 
-        // create necessary token mappings (id to symbol, symbol to addr)
-        utiltime := time.Now()
-        // id counter
-        index := 0 
+	// create necessary token mappings (id to symbol, symbol to addr)
+	utiltime := time.Now()
+	// id counter
+	index := 0
 
-        // create unique indexes / id for tokens and populate mappings
-        for _, pair := range pairInfos.Data.Pairs {
-                // int -> symbol & symbol -> int
-                // symbol -> id
-                _, ok := tokenNameToId[pair.Token0.Symbol]
-                if !ok {
-                   tokenIdToName[index] = pair.Token0.Symbol
-                   tokenNameToId[pair.Token0.Symbol] = index
-                   index++
-                }
+	// create unique indexes / id for tokens and populate mappings
+	for _, pair := range pairInfos.Data.Pairs {
+		// int -> symbol & symbol -> int
+		// symbol -> id
+		_, ok := tokenNameToId[pair.Token0.Symbol]
+		if !ok {
+			tokenIdToName[index] = pair.Token0.Symbol
+			tokenNameToId[pair.Token0.Symbol] = index
+			index++
+		}
 
-                // symbol -> id
-                _, notexis := tokenNameToId[pair.Token1.Symbol]
-                if !notexis {
-                   tokenIdToName[index] = pair.Token1.Symbol
-                   tokenNameToId[pair.Token1.Symbol] = index
-                   index++
-                }
-                
-                // symbol1 -> addr
-                _, exists := tokenToAddr[pair.Token0.Symbol]
-                if !exists {
-                        tokenToAddr[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
-                }
+		// symbol -> id
+		_, notexis := tokenNameToId[pair.Token1.Symbol]
+		if !notexis {
+			tokenIdToName[index] = pair.Token1.Symbol
+			tokenNameToId[pair.Token1.Symbol] = index
+			index++
+		}
 
-                // symbol2 -> addr
-                _, err := tokenToAddr[pair.Token0.Symbol]
-                if !err {
-                        tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
-                }
-        }
+		// symbol1 -> addr
+		_, exists := tokenToAddr[pair.Token0.Symbol]
+		if !exists {
+			tokenToAddr[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
+		}
 
-        // vertices start from 0, 1,2, 3,....
-        vertices = makeRange(0, len(tokenIdToName)-1)
-        fmt.Println("util mapping creation time: ", time.Since(utiltime))
-        // for each pair, create edges for all the pairs that we have
-        for key, pair := range pairInfos.Data.Pairs {
-                reserve0 := reserves[key][0]
-                reserve1 := reserves[key][1]
+		// symbol2 -> addr
+		_, err := tokenToAddr[pair.Token0.Symbol]
+		if !err {
+			tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
+		}
+	}
 
-                token0Decimals, err := strconv.ParseInt(pair.Token0.Decimals, 10, 64)
-                if err != nil {
-                        fmt.Println("comeback")
-                }
+	// vertices start from 0, 1,2, 3,....
+	vertices = makeRange(0, len(tokenIdToName)-1)
+	fmt.Println("util mapping creation time: ", time.Since(utiltime))
+	// for each pair, create edges for all the pairs that we have
+	for key, pair := range pairInfos.Data.Pairs {
+		reserve0 := reserves[key][0]
+		reserve1 := reserves[key][1]
 
-                token1Decimals, err := strconv.ParseInt(pair.Token1.Decimals, 10, 64)
-                if err != nil {
-                        fmt.Println("comeback")
-                }
+		token0Decimals, err := strconv.ParseInt(pair.Token0.Decimals, 10, 64)
+		if err != nil {
+			fmt.Println("comeback")
+		}
 
-                one_token0 := new(big.Int).Exp(ten, big.NewInt(token0Decimals), nil)
-                one_token1 := new(big.Int).Exp(ten, big.NewInt(token1Decimals), nil)
+		token1Decimals, err := strconv.ParseInt(pair.Token1.Decimals, 10, 64)
+		if err != nil {
+			fmt.Println("comeback")
+		}
 
-                price_0_to_1, err := util.GetAmountOut(one_token0, reserve0, reserve1)
-                if err != nil {
-                        fmt.Println("comeback")
-                }
+		one_token0 := new(big.Int).Exp(ten, big.NewInt(token0Decimals), nil)
+		one_token1 := new(big.Int).Exp(ten, big.NewInt(token1Decimals), nil)
 
-                price_1_to_0, err := util.GetAmountOut(one_token1, reserve1, reserve0)
-                if err != nil {
-                        fmt.Println("comeback")
-                }
+		price_0_to_1, err := util.GetAmountOut(one_token0, reserve0, reserve1)
+		if err != nil {
+			fmt.Println("comeback")
+		}
 
-                // applying negative log
-                p0 := new(big.Float).SetInt(price_0_to_1)
-                p0.Quo(p0, new(big.Float).SetInt(one_token1))
+		price_1_to_0, err := util.GetAmountOut(one_token1, reserve1, reserve0)
+		if err != nil {
+			fmt.Println("comeback")
+		}
 
-                p1 := new(big.Float).SetInt(price_1_to_0)
-                p1.Quo(p1, new(big.Float).SetInt(one_token0))
+		// applying negative log
+		p0 := new(big.Float).SetInt(price_0_to_1)
+		p0.Quo(p0, new(big.Float).SetInt(one_token1))
 
-                p0_neg_log := bigfloat.Log(p0)
-                p0_neg_log.Mul(p0_neg_log, neg_one)
+		p1 := new(big.Float).SetInt(price_1_to_0)
+		p1.Quo(p1, new(big.Float).SetInt(one_token0))
 
-                p1_neg_log := bigfloat.Log(p1)
-                p1_neg_log.Mul(p1_neg_log, neg_one)
+		p0_neg_log := bigfloat.Log(p0)
+		p0_neg_log.Mul(p0_neg_log, neg_one)
 
-                // create two quotes
-                firstEdge := graph.NewEdge(tokenNameToId[pair.Token0.Symbol], tokenNameToId[pair.Token1.Symbol], p0_neg_log)
-                secondEdge := graph.NewEdge(tokenNameToId[pair.Token1.Symbol], tokenNameToId[pair.Token0.Symbol], p1_neg_log)
+		p1_neg_log := bigfloat.Log(p1)
+		p1_neg_log.Mul(p1_neg_log, neg_one)
 
-                edges = append(edges, firstEdge, secondEdge)
-        }
+		// create two quotes
+		firstEdge := graph.NewEdge(tokenNameToId[pair.Token0.Symbol], tokenNameToId[pair.Token1.Symbol], p0_neg_log)
+		secondEdge := graph.NewEdge(tokenNameToId[pair.Token1.Symbol], tokenNameToId[pair.Token0.Symbol], p1_neg_log)
 
-        fmt.Printf("[Create Edges]: Took %v to create edges for %v pairs \n", time.Since(now), len(pairs))
-        fmt.Printf("[EDGE] Edge Count: %v, vertices: %v tokenToName: %v\n", len(edges), len(vertices), len(tokenToAddr))
-        fmt.Printf("[EDGE] tokenIdToName: %v, tokenNameToId: %v, tokenToName: %v\n", len(tokenIdToName), len(tokenNameToId), len(tokenToAddr))
-        // fmt.Printf("[EDGE] TokenNameToId: %+v \n", tokenNameToId)
+		edges = append(edges, firstEdge, secondEdge)
+	}
 
-        // PRINT VALUES FOR MAPPINGS
-        // fmt.Println("tokenIdToName: ", tjokenIdToName)
-        // fmt.Println("tokenNameToId: ", tokenNameToId)
-        // fmt.Println("tokenToName: ", tokenToName)
+	fmt.Printf("[Create Edges]: Took %v to create edges for %v pairs \n", time.Since(now), len(pairs))
+	fmt.Printf("[EDGE] Edge Count: %v, vertices: %v tokenToName: %v\n", len(edges), len(vertices), len(tokenToAddr))
+	fmt.Printf("[EDGE] tokenIdToName: %v, tokenNameToId: %v, tokenToName: %v\n", len(tokenIdToName), len(tokenNameToId), len(tokenToAddr))
+	// fmt.Printf("[EDGE] TokenNameToId: %+v \n", tokenNameToId)
 
-        inputTokens := []string{"WETH", "USDT", "WBTC", "USDC"}
+	// PRINT VALUES FOR MAPPINGS
+	// fmt.Println("tokenIdToName: ", tjokenIdToName)
+	// fmt.Println("tokenNameToId: ", tokenNameToId)
+	// fmt.Println("tokenToName: ", tokenToName)
 
-        for _, token := range inputTokens {
-                arber := graph.NewGraph(edges, vertices, tokenIdToName, tokenToAddr, tokenNameToId)
-                fmt.Println("token routes for: ", token)
-                tokenId := arber.GetTokenId(token)
-                fmt.Println("id: ", tokenId)
+	inputTokens := []string{"WETH", "USDT", "WBTC", "USDC"}
 
-                loop := arber.FindArbitrageLoop(tokenId)
+	for _, token := range inputTokens {
+		arber := graph.NewGraph(edges, vertices, tokenIdToName, tokenToAddr, tokenNameToId)
+		fmt.Println("token routes for: ", token)
+		tokenId := arber.GetTokenId(token)
+		fmt.Println("id: ", tokenId)
 
-                for _, key := range loop {
-                        fmt.Printf("%v -> ", arber.GetTokenName(key))
-                }
+		loop := arber.FindArbitrageLoop(tokenId)
 
-                fmt.Printf("\n\n %v loop: %v \n\n", token, loop)
-        }
+		for _, key := range loop {
+			fmt.Printf("%v -> ", arber.GetTokenName(key))
+		}
 
-// memprofile
+		fmt.Printf("\n\n %v loop: %v \n\n", token, loop)
+	}
 
-    if *memprofile != "" {
-        f, err := os.Create(*memprofile)
-        if err != nil {
-            log.Fatal("could not create memory profile: ", err)
-        }
-        defer f.Close()
-        runtime.GC() // get up-to-date statistics
-        if err := pprof.WriteHeapProfile(f); err != nil {
-            log.Fatal("could not write memory profile: ", err)
-        }
-    }
+	// memprofile
+
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		defer f.Close()
+		runtime.GC() // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
+		}
+	}
 }

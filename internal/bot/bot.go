@@ -1,16 +1,21 @@
 package bot
 
 import (
+	"chainrunner/internal/graph"
 	"chainrunner/internal/util"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math/big"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/ALTree/bigfloat"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	log "github.com/inconshreveable/log15"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -18,6 +23,10 @@ import (
 )
 
 var (
+	ten       = new(big.Int).SetInt64(10)
+	zero      = new(big.Int).SetInt64(0)
+	neg_one   = new(big.Float).SetFloat64(-1)
+	inf       = new(big.Float).SetInf(true)
 	repl_mode = flag.Bool(
 		"repl_mode", false, "repl mode to inspect DB",
 	)
@@ -145,6 +154,68 @@ func (b *Bot) KickoffFailureLogs(file_used string, failures chan *ReportMessage)
 	}
 }
 
+type PoolReserve struct {
+	reserve0 *big.Int
+	reserve1 *big.Int
+}
+
+// Creates edges given reserves and pairs
+func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenNameToId map[string]int) []*graph.Edge {
+	defer util.Duration(util.Track("CreateEdges-1000"))
+
+	var edges []*graph.Edge
+	log.Info("Creating edges")
+
+	for _, pair := range pairInfos.Data.Pairs {
+		reserve0 := reserves[common.HexToAddress(pair.Address)].reserve0
+		reserve1 := reserves[common.HexToAddress(pair.Address)].reserve1
+
+		token0Decimals, err := strconv.ParseInt(pair.Token0.Decimals, 10, 64)
+		if err != nil {
+			fmt.Println("comeback")
+		}
+
+		token1Decimals, err := strconv.ParseInt(pair.Token1.Decimals, 10, 64)
+		if err != nil {
+			fmt.Println("comeback")
+		}
+
+		one_token0 := new(big.Int).Exp(ten, big.NewInt(token0Decimals), nil)
+		one_token1 := new(big.Int).Exp(ten, big.NewInt(token1Decimals), nil)
+
+		price_0_to_1, err := util.GetAmountOut(one_token0, reserve0, reserve1)
+		if err != nil {
+			fmt.Println("comeback")
+		}
+
+		price_1_to_0, err := util.GetAmountOut(one_token1, reserve1, reserve0)
+		if err != nil {
+			fmt.Println("comeback")
+		}
+
+		// applying negative log
+		p0 := new(big.Float).SetInt(price_0_to_1)
+		p0.Quo(p0, new(big.Float).SetInt(one_token1))
+
+		p1 := new(big.Float).SetInt(price_1_to_0)
+		p1.Quo(p1, new(big.Float).SetInt(one_token0))
+
+		p0_neg_log := bigfloat.Log(p0)
+		p0_neg_log.Mul(p0_neg_log, neg_one)
+
+		p1_neg_log := bigfloat.Log(p1)
+		p1_neg_log.Mul(p1_neg_log, neg_one)
+
+		// create two quotes
+		firstEdge := graph.NewEdge(tokenNameToId[pair.Token0.Symbol], tokenNameToId[pair.Token1.Symbol], p0_neg_log)
+		secondEdge := graph.NewEdge(tokenNameToId[pair.Token1.Symbol], tokenNameToId[pair.Token0.Symbol], p1_neg_log)
+
+		edges = append(edges, firstEdge, secondEdge)
+	}
+
+	return edges
+}
+
 // Run the bot
 func (b *Bot) Run() (e error) {
 	var g errgroup.Group
@@ -164,24 +235,79 @@ func (b *Bot) Run() (e error) {
 	})
 
 	// pairs logic
-	pairs := util.Get1000Pairs()
 
 	// start here
 	g.Go(func() error {
+		// TODO: Setup pairs here
+		// id -> 'token name' mapping
+		tokenIdToName := make(map[int]string)
+		// name -> id
+		tokenNameToId := make(map[string]int)
+		// pair name -> address
+		tokenToAddr := make(map[string]common.Address)
+		addresses, pairInfos := util.GetDemoPairs(b.clients.primary)
+		index := 0
+		// create unique indexes / id for tokens and populate mappings
+		for _, pair := range pairInfos.Data.Pairs {
+			// int -> symbol & symbol -> int
+			// symbol -> id
+			_, ok := tokenNameToId[pair.Token0.Symbol]
+			if !ok {
+				tokenIdToName[index] = pair.Token0.Symbol
+				tokenNameToId[pair.Token0.Symbol] = index
+				index++
+			}
+
+			// symbol -> id
+			_, notexis := tokenNameToId[pair.Token1.Symbol]
+			if !notexis {
+				tokenIdToName[index] = pair.Token1.Symbol
+				tokenNameToId[pair.Token1.Symbol] = index
+				index++
+			}
+
+			// symbol1 -> addr
+			_, exists := tokenToAddr[pair.Token0.Symbol]
+			if !exists {
+				tokenToAddr[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
+			}
+
+			// symbol2 -> addr
+			_, err := tokenToAddr[pair.Token0.Symbol]
+			if !err {
+				tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
+			}
+		}
 		i := float64(0)
 		avg := float64(0)
 		for {
+			// LOOP START
 			start := time.Now()
 
-			res, err := b.clients.primary.GetReservesSlots(context.Background(), pairs, nil)
+			// get reserves slots
+			res, err := b.clients.primary.GetReservesSlots(context.Background(), addresses, nil)
 			if err != nil {
 				log.Error("ERROR Getting reserves", "error", err)
 				panic("exiting")
 			}
+			log.Info("Reserves", "Got pairs", len(res))
 
-			fmt.Println("GOT")
-			fmt.Printf("%T \n", res)
+			reserves := make(map[common.Address]*PoolReserve)
 
+			for poolAddress, rawReserve := range res {
+				res0, res1 := util.DeriveReservesFromSlot(rawReserve.String())
+				reserves[poolAddress] = &PoolReserve{
+					reserve0: res0,
+					reserve1: res1,
+				}
+			}
+
+			edges := CreateEdges(reserves, pairInfos, tokenNameToId)
+
+			log.Info("Got edges", "count", len(edges))
+			log.Info("Finished creating latest reserves mapping")
+
+			// LOOP END
 			elapsed := time.Since(start)
 			log.Info("Time Elapsed", "iteration", elapsed)
 			i++
