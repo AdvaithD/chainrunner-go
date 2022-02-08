@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/ALTree/bigfloat v0.0.0-20201218142103-4a33235224ec
+	github.com/Khan/genqlient v0.3.0 // indirect
 	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/cpuguy83/go-md2man v1.0.8 // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
@@ -12,6 +13,7 @@ require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/joho/godotenv v1.4.0
+	github.com/machinebox/graphql v0.2.2 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.6.0
 	github.com/rjeczalik/notify v0.9.2 // indirect
@@ -27,3 +29,5 @@ require (
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 )
+
+replace github.com/ethereum/go-ethereum/ethclient => /home/bot/geth-storageat/ethclient
