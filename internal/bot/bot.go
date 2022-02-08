@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -161,58 +162,75 @@ type PoolReserve struct {
 
 // Creates edges given reserves and pairs
 func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenNameToId map[string]int) []*graph.Edge {
+	var wg sync.WaitGroup
 	defer util.Duration(util.Track("CreateEdges-1000"))
 
 	var edges []*graph.Edge
 	log.Info("Creating edges")
 
 	for _, pair := range pairInfos.Data.Pairs {
-		reserve0 := reserves[common.HexToAddress(pair.Address)].reserve0
-		reserve1 := reserves[common.HexToAddress(pair.Address)].reserve1
+		wg.Add(1)
+		go func(pair struct {
+			Address string `json:"id"`
+			Token0  struct {
+				Decimals string `json:"decimals"`
+				Address  string `json:"id"`
+				Symbol   string `json:"symbol"`
+			} `json:"token0"`
+			Token1 struct {
+				Decimals string `json:"decimals"`
+				Address  string `json:"id"`
+				Symbol   string `json:"symbol"`
+			} `json:"token1"`
+		}) {
+			reserve0 := reserves[common.HexToAddress(pair.Address)].reserve0
+			reserve1 := reserves[common.HexToAddress(pair.Address)].reserve1
 
-		token0Decimals, err := strconv.ParseInt(pair.Token0.Decimals, 10, 64)
-		if err != nil {
-			fmt.Println("comeback")
-		}
+			token0Decimals, err := strconv.ParseInt(pair.Token0.Decimals, 10, 64)
+			if err != nil {
+				fmt.Println("comeback")
+			}
 
-		token1Decimals, err := strconv.ParseInt(pair.Token1.Decimals, 10, 64)
-		if err != nil {
-			fmt.Println("comeback")
-		}
+			token1Decimals, err := strconv.ParseInt(pair.Token1.Decimals, 10, 64)
+			if err != nil {
+				fmt.Println("comeback")
+			}
 
-		one_token0 := new(big.Int).Exp(ten, big.NewInt(token0Decimals), nil)
-		one_token1 := new(big.Int).Exp(ten, big.NewInt(token1Decimals), nil)
+			one_token0 := new(big.Int).Exp(ten, big.NewInt(token0Decimals), nil)
+			one_token1 := new(big.Int).Exp(ten, big.NewInt(token1Decimals), nil)
 
-		price_0_to_1, err := util.GetAmountOut(one_token0, reserve0, reserve1)
-		if err != nil {
-			fmt.Println("comeback")
-		}
+			price_0_to_1, err := util.GetAmountOut(one_token0, reserve0, reserve1)
+			if err != nil {
+				fmt.Println("comeback")
+			}
 
-		price_1_to_0, err := util.GetAmountOut(one_token1, reserve1, reserve0)
-		if err != nil {
-			fmt.Println("comeback")
-		}
+			price_1_to_0, err := util.GetAmountOut(one_token1, reserve1, reserve0)
+			if err != nil {
+				fmt.Println("comeback")
+			}
 
-		// applying negative log
-		p0 := new(big.Float).SetInt(price_0_to_1)
-		p0.Quo(p0, new(big.Float).SetInt(one_token1))
+			// applying negative log
+			p0 := new(big.Float).SetInt(price_0_to_1)
+			p0.Quo(p0, new(big.Float).SetInt(one_token1))
 
-		p1 := new(big.Float).SetInt(price_1_to_0)
-		p1.Quo(p1, new(big.Float).SetInt(one_token0))
+			p1 := new(big.Float).SetInt(price_1_to_0)
+			p1.Quo(p1, new(big.Float).SetInt(one_token0))
 
-		p0_neg_log := bigfloat.Log(p0)
-		p0_neg_log.Mul(p0_neg_log, neg_one)
+			p0_neg_log := bigfloat.Log(p0)
+			p0_neg_log.Mul(p0_neg_log, neg_one)
 
-		p1_neg_log := bigfloat.Log(p1)
-		p1_neg_log.Mul(p1_neg_log, neg_one)
+			p1_neg_log := bigfloat.Log(p1)
+			p1_neg_log.Mul(p1_neg_log, neg_one)
 
-		// create two quotes
-		firstEdge := graph.NewEdge(tokenNameToId[pair.Token0.Symbol], tokenNameToId[pair.Token1.Symbol], p0_neg_log)
-		secondEdge := graph.NewEdge(tokenNameToId[pair.Token1.Symbol], tokenNameToId[pair.Token0.Symbol], p1_neg_log)
+			// create two quotes
+			firstEdge := graph.NewEdge(tokenNameToId[pair.Token0.Symbol], tokenNameToId[pair.Token1.Symbol], p0_neg_log)
+			secondEdge := graph.NewEdge(tokenNameToId[pair.Token1.Symbol], tokenNameToId[pair.Token0.Symbol], p1_neg_log)
 
-		edges = append(edges, firstEdge, secondEdge)
+			edges = append(edges, firstEdge, secondEdge)
+			wg.Done()
+		}(pair)
 	}
-
+	wg.Wait()
 	return edges
 }
 
@@ -234,17 +252,15 @@ func (b *Bot) Run() (e error) {
 		return nil
 	})
 
-	// pairs logic
-
 	// start here
 	g.Go(func() error {
-		// TODO: Setup pairs here
 		// id -> 'token name' mapping
 		tokenIdToName := make(map[int]string)
 		// name -> id
 		tokenNameToId := make(map[string]int)
 		// pair name -> address
 		tokenToAddr := make(map[string]common.Address)
+		// get top 1000 pairs on uniswapv2
 		addresses, pairInfos := util.GetDemoPairs(b.clients.primary)
 		index := 0
 		// create unique indexes / id for tokens and populate mappings
@@ -278,8 +294,11 @@ func (b *Bot) Run() (e error) {
 				tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
 			}
 		}
+
+		// loop analytics
 		i := float64(0)
 		avg := float64(0)
+
 		for {
 			// LOOP START
 			start := time.Now()
