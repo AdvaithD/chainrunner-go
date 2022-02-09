@@ -424,8 +424,22 @@ func (b *Bot) Run() (e error) {
 			}
 
 			grap := CreateEdges(reserves, pairInfos, tokenNameToId)
+
+			// Get node id's for two tokens (WETH and MATIC)
+			// Note: These serve as initial starting points for arbs on polygon
+			// TODO: Expand initial tokens for arb to others later
+			WETH, found := tokenNameToId["WETH"]
+			if found != true {
+				log.Info("unable to find token id", "token", "WETH")
+			}
+			WMATIC, found := tokenNameToId["MATIC"]
+			if found != true {
+				log.Info("unable to find token id", "token", "MATIC")
+			}
+
+			fmt.Println(WETH, WMATIC)
 			// get weth token id
-			DFS(grap)
+			DFS(grap, WETH)
 			// graph.printGraph()
 
 			// Code that inspects simulation data
