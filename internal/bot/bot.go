@@ -311,6 +311,24 @@ func DFS(g *AdjGraph, source int) {
 	defer util.Duration(util.Track("DFS"))
 }
 
+type TokenHelper struct {
+		// id -> 'token name' mapping
+		tokenIdToName map[int]string
+		// name -> id
+		tokenNameToId map[string]int
+		// pair name -> address
+		tokenToAddr map[string]common.Address
+}
+
+func NewTokenHelper() *TokenHelper {
+	tokenHelper := &TokenHelper{
+		tokenIdToName: make(map[int]string),
+		tokenNameToId: make(map[string]int),
+		tokenToAddr: make(map[string]common.Address),
+	}
+	return tokenHelper
+}
+
 // Run the bot
 func (b *Bot) Run() (e error) {
 	var g errgroup.Group
@@ -340,6 +358,12 @@ func (b *Bot) Run() (e error) {
 		// pair name -> address
 		tokenToAddr := make(map[string]common.Address)
 		// get top 1000 pairs on uniswapv2
+
+		// Create token helper struct
+
+		tokenHelper := NewTokenHelper()
+		
+		fmt.Println("tokenheper", tokenHelper)
 		addresses, pairInfos := util.GetDemoPairs(b.clients.primary)
 		index := 0
 		// create unique indexes / id for tokens and populate mappings
@@ -423,22 +447,25 @@ func (b *Bot) Run() (e error) {
 				}
 			}
 
+			// create graph using adjacency list
 			grap := CreateEdges(reserves, pairInfos, tokenNameToId)
 
 			// Get node id's for two tokens (WETH and MATIC)
 			// Note: These serve as initial starting points for arbs on polygon
 			// TODO: Expand initial tokens for arb to others later
 			WETH, found := tokenNameToId["WETH"]
-			if found != true {
+			if !found {
 				log.Info("unable to find token id", "token", "WETH")
 			}
 			WMATIC, found := tokenNameToId["MATIC"]
-			if found != true {
+			if !found {
 				log.Info("unable to find token id", "token", "MATIC")
 			}
 
 			fmt.Println(WETH, WMATIC)
+			// Perform DFS on graph starting with WETH. lets see
 			// get weth token id
+			// params: graph, initial token id, tokenNameToId and tokenIdToName
 			DFS(grap, WETH)
 			// graph.printGraph()
 
