@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"errors"
 	"time"
 
 	"github.com/ALTree/bigfloat"
@@ -228,13 +229,13 @@ func (this *AdjGraph) printGraph() {
 // Maybe need to hardcode WETH and WMATIC trades
 
 // Creates edges given reserves and pairs
-func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenNameToId map[string]int) *AdjGraph {
+func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenHelper *TokenHelper) *AdjGraph {
 	var wg sync.WaitGroup
 	var mu = &sync.Mutex{}
 	defer util.Duration(util.Track("CreateEdges-300"))
 	log.Info("Creating edges")
 
-	graph := GetAdjGraph(len(tokenNameToId))
+	graph := GetAdjGraph(len(tokenHelper.tokenNameToId))
 
 	for _, pair := range pairInfos.Data.Pairs {
 		wg.Add(1)
@@ -292,8 +293,8 @@ func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.Uniswa
 			p1_neg_log.Mul(p1_neg_log, neg_one)
 
 			// create two quotes (u, v, w) two vertices by names and w is weigth
-			token0Id := tokenNameToId[pair.Token0.Symbol]
-			token1Id := tokenNameToId[pair.Token1.Symbol]
+			token0Id := tokenHelper.tokenNameToId[pair.Token0.Symbol]
+			token1Id := tokenHelper.tokenNameToId[pair.Token1.Symbol]
 
 			mu.Lock()
 
@@ -307,8 +308,27 @@ func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.Uniswa
 	return graph
 }
 
-func DFS(g *AdjGraph, source int) {
+func DFS(g *AdjGraph, source int, visited map[int]bool, tokenHelper *TokenHelper) {
 	defer util.Duration(util.Track("DFS"))
+	if (visited[source] == true) {
+		wethId, err := tokenHelper.GetTokenId("WETH")
+
+		if err != nil {
+			log.Error("DFS err", "err", err)
+		}
+		if source == wethId {
+			log.Debug("DFS Algorithm: Found a path", "source", source)
+		}
+		return
+	}
+
+	// set current node to visited
+	visited[source] = true
+
+	// loop over each node 'source' is connected to
+	for _, fromSourceToNode := range g.adgeList[source] {
+		DFS(g, fromSourceToNode, visited, tokenHelper)	
+	}
 }
 
 type TokenHelper struct {
@@ -327,6 +347,21 @@ func NewTokenHelper() *TokenHelper {
 		tokenToAddr: make(map[string]common.Address),
 	}
 	return tokenHelper
+}
+
+// given an id, gets symbol
+func (t *TokenHelper) GetTokenSymbol(source int)  (string, error) {
+	if val, ok := t.tokenIdToName[source]; ok {
+		return val, nil
+	}
+	return "", errors.New("token not found")
+}
+
+func (t *TokenHelper) GetTokenId(source string)  (int, error) {
+	if val, ok := t.tokenNameToId[source]; ok {
+		return val, nil
+	}
+	return 0, errors.New("token not found")
 }
 
 // Run the bot
@@ -351,13 +386,13 @@ func (b *Bot) Run() (e error) {
 
 	// start here
 	g.Go(func() error {
-		// id -> 'token name' mapping
-		tokenIdToName := make(map[int]string)
-		// name -> id
-		tokenNameToId := make(map[string]int)
-		// pair name -> address
-		tokenToAddr := make(map[string]common.Address)
-		// get top 1000 pairs on uniswapv2
+		// // id -> 'token name' mapping
+		// tokenIdToName := make(map[int]string)
+		// // name -> id
+		// tokenNameToId := make(map[string]int)
+		// // pair name -> address
+		// tokenToAddr := make(map[string]common.Address)
+		// // get top 1000 pairs on uniswapv2
 
 		// Create token helper struct
 
@@ -366,38 +401,39 @@ func (b *Bot) Run() (e error) {
 		fmt.Println("tokenheper", tokenHelper)
 		addresses, pairInfos := util.GetDemoPairs(b.clients.primary)
 		index := 0
-		// create unique indexes / id for tokens and populate mappings
+		// create unique indexes / id for tokens and populate tokenHelper struct
 		for _, pair := range pairInfos.Data.Pairs {
 			// int -> symbol & symbol -> int
 			// symbol -> id
-			_, ok := tokenNameToId[pair.Token0.Symbol]
+			_, ok := tokenHelper.tokenNameToId[pair.Token0.Symbol]
 			if !ok {
-				tokenIdToName[index] = pair.Token0.Symbol
-				tokenNameToId[pair.Token0.Symbol] = index
+				tokenHelper.tokenIdToName[index] = pair.Token0.Symbol
+				tokenHelper.tokenNameToId[pair.Token0.Symbol] = index
 				index++
 			}
 
 			// symbol -> id
-			_, notexis := tokenNameToId[pair.Token1.Symbol]
+			_, notexis := tokenHelper.tokenNameToId[pair.Token1.Symbol]
 			if !notexis {
-				tokenIdToName[index] = pair.Token1.Symbol
-				tokenNameToId[pair.Token1.Symbol] = index
+				tokenHelper.tokenIdToName[index] = pair.Token1.Symbol
+				tokenHelper.tokenNameToId[pair.Token1.Symbol] = index
 				index++
 			}
 
 			// symbol1 -> addr
-			_, exists := tokenToAddr[pair.Token0.Symbol]
+			_, exists := tokenHelper.tokenToAddr[pair.Token0.Symbol]
 			if !exists {
-				tokenToAddr[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
+				tokenHelper.tokenToAddr[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
 			}
 
 			// symbol2 -> addr
-			_, err := tokenToAddr[pair.Token0.Symbol]
+			_, err := tokenHelper.tokenToAddr[pair.Token0.Symbol]
 			if !err {
-				tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
+				tokenHelper.tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
 			}
 		}
-		log.Info("Number of Tokens", "tokenNameToId", len(tokenNameToId))
+
+		log.Info("Number of Tokens", "tokenNameToId", len(tokenHelper.tokenNameToId))
 
 		// loop analytics
 		i := float64(0)
@@ -406,7 +442,6 @@ func (b *Bot) Run() (e error) {
 		for {
 			// LOOP START
 			start := time.Now()
-
 			// get reserves slots
 			res, err := b.clients.primary.GetReservesSlots(context.Background(), addresses, nil)
 
@@ -448,25 +483,27 @@ func (b *Bot) Run() (e error) {
 			}
 
 			// create graph using adjacency list
-			grap := CreateEdges(reserves, pairInfos, tokenNameToId)
+			grap := CreateEdges(reserves, pairInfos, tokenHelper)
 
 			// Get node id's for two tokens (WETH and MATIC)
 			// Note: These serve as initial starting points for arbs on polygon
 			// TODO: Expand initial tokens for arb to others later
-			WETH, found := tokenNameToId["WETH"]
+			WETH, found := tokenHelper.tokenNameToId["WETH"]
 			if !found {
 				log.Info("unable to find token id", "token", "WETH")
 			}
-			WMATIC, found := tokenNameToId["MATIC"]
+			WMATIC, found := tokenHelper.tokenNameToId["MATIC"]
 			if !found {
 				log.Info("unable to find token id", "token", "MATIC")
 			}
 
+			visited := make(map[int]bool)
+
 			fmt.Println(WETH, WMATIC)
 			// Perform DFS on graph starting with WETH. lets see
 			// get weth token id
-			// params: graph, initial token id, tokenNameToId and tokenIdToName
-			DFS(grap, WETH)
+			// params: graph, initial token id, visited, tokenHelped
+			DFS(grap, WETH, visited, tokenHelper)
 			// graph.printGraph()
 
 			// Code that inspects simulation data
