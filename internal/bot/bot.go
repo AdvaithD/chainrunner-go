@@ -231,7 +231,7 @@ func (this *AdjGraph) printGraph() {
 func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenNameToId map[string]int) *AdjGraph {
 	var wg sync.WaitGroup
 	var mu = &sync.Mutex{}
-	defer util.Duration(util.Track("CreateEdges-1000"))
+	defer util.Duration(util.Track("CreateEdges-300"))
 	log.Info("Creating edges")
 
 	graph := GetAdjGraph(len(tokenNameToId))
@@ -305,6 +305,10 @@ func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.Uniswa
 	}
 	wg.Wait()
 	return graph
+}
+
+func DFS(g *AdjGraph, source int) {
+	defer util.Duration(util.Track("DFS"))
 }
 
 // Run the bot
@@ -419,8 +423,9 @@ func (b *Bot) Run() (e error) {
 				}
 			}
 
-			CreateEdges(reserves, pairInfos, tokenNameToId)
-
+			grap := CreateEdges(reserves, pairInfos, tokenNameToId)
+			// get weth token id
+			DFS(grap)
 			// graph.printGraph()
 
 			// Code that inspects simulation data

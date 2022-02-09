@@ -14,7 +14,7 @@ var (
 		"db_path", "chainrunner-test-db", "where is the db",
 	)
 
-	DRY_RUN = flag.Bool("dry_run", false, "dry run ")
+	DRY_RUN = flag.Bool("dry", false, "dry run ")
 
 	CPU_PROFILE = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	MEM_PROFILE = flag.String("memprofile", "", "write memory profile to `file`")
