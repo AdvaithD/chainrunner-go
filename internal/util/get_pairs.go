@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 type UniswapPairs struct {
@@ -31,11 +32,29 @@ type UniswapPairs struct {
 	} `json:"data"`
 }
 
+// get uniswap pairs to bootstrap reserves data
+func GetDemoPairs(client *ethclient.Client) ([]common.Address, UniswapPairs) {
+	pairInfos, err := GetUniswapPairs()
+
+	if err != nil {
+		fmt.Println("err getting graphql pairdata")
+	}
+
+	pairAddresses := make([]common.Address, 0)
+
+	for _, pair := range pairInfos.Data.Pairs {
+		pairAddresses = append(pairAddresses, common.HexToAddress(pair.Address))
+	}
+
+	// fmt.Printf("%V \n", res)
+	return pairAddresses, pairInfos
+}
+
 func GetUniswapPairs() (UniswapPairs, error) {
 	jsonData := map[string]string{
 		"query": `
         {
-          pairs(first: 1000, skip: 0, where: {volumeUSD_gt: "10000000"}, orderBy: reserveUSD, orderDirection: desc) {
+          pairs(first: 300, skip: 0, where: {volumeUSD_gt: "10000000"}, orderBy: reserveUSD, orderDirection: desc) {
             id
             token0 {
               id
@@ -75,7 +94,7 @@ func GetUniswapPairs() (UniswapPairs, error) {
 }
 
 // returns 1000 uniswap pair addresses
-func Get1000Pairs() []common.Address {
+func Get1000PairAddresses() []common.Address {
 	pairInfos, err := GetUniswapPairs()
 
 	if err != nil {

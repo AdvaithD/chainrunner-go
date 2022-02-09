@@ -6,15 +6,24 @@ import (
 	"flag"
 	"log"
 	"os"
-
-	"github.com/pkg/profile"
+	"runtime"
+	"runtime/pprof"
 )
 
 func main() {
 	flag.Parse()
 
-	if *flags.ENABLE_PPROF {
-		defer profile.Start().Stop()
+	// cpu profiling
+	if *flags.CPU_PROFILE != "" {
+		f, err := os.Create(*flags.CPU_PROFILE)
+		if err != nil {
+			log.Fatal("could not create CPU profile: ", err)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			log.Fatal("could not start CPU profile: ", err)
+		}
+		defer pprof.StopCPUProfile()
 	}
 
 	bot, err := bot.NewBot(*flags.DB_PATH, *flags.DEFAULT_CLIENT)
@@ -30,5 +39,17 @@ func main() {
 
 	if err := bot.CloseResources(); err != nil {
 		log.Print("something wrong with closing resources", err)
+	}
+
+	if *flags.MEM_PROFILE != "" {
+		f, err := os.Create(*flags.MEM_PROFILE)
+		if err != nil {
+			log.Fatal("could not create memory profile: ", err)
+		}
+		defer f.Close()
+		runtime.GC() // get up-to-date statistics
+		if err := pprof.WriteHeapProfile(f); err != nil {
+			log.Fatal("could not write memory profile: ", err)
+		}
 	}
 }
