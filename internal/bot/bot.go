@@ -213,6 +213,19 @@ func (this *AdjGraph) addEdge(u, v int, w *big.Float) {
 		this.weights[u][v] = w
 	}
 }
+func (this *AdjGraph) printGraph() {
+	fmt.Print("\n Graph Adjacency List ")
+	for i := 0; i < this.vertices; i++ {
+		fmt.Print(" \n [", i, "] :")
+		// iterate edges of i node
+		for j := 0; j < len(this.adgeList[i]); j++ {
+			fmt.Print("  ", this.adgeList[i][j])
+		}
+	}
+}
+
+// TODO: Function that looks at reserves (in terms of tokenAddress) that are changing and if we want that to be starting path
+// Maybe need to hardcode WETH and WMATIC trades
 
 // Creates edges given reserves and pairs
 func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenNameToId map[string]int) *AdjGraph {
@@ -407,6 +420,8 @@ func (b *Bot) Run() (e error) {
 			}
 
 			CreateEdges(reserves, pairInfos, tokenNameToId)
+
+			// graph.printGraph()
 
 			// Code that inspects simulation data
 			// for address, gasReserveMap := range res {
