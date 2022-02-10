@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/syndtr/goleveldb/leveldb"
 	"golang.org/x/sync/errgroup"
-	"gonum.org/v1/gonum/graph/simple"
 	"gonum.org/v1/gonum/graph/topo"
 )
 
@@ -43,8 +41,16 @@ type ReportMessage struct {
 	Extra    interface{}
 }
 
+type OpptyMessage struct {
+	path          []string
+	triggeringTxn string
+	When          time.Time // When an oppportunity was found. can compare this with triggeringTxn's delta (to be collected on node later)
+	ArgsUsed      interface{}
+	Extra         interface{}
+}
+
 type report_logs struct {
-	found_arb         chan *ReportMessage
+	found_arb         chan *OpptyMessage
 	estimate_fail_log chan *ReportMessage
 	not_worth_it_log  chan *ReportMessage
 }
@@ -95,7 +101,7 @@ func NewBot(db_path, client_path string) (*Bot, error) {
 			otherwise: client,
 		},
 		log_update_incoming: report_logs{
-			make(chan *ReportMessage),
+			make(chan *OpptyMessage),
 			make(chan *ReportMessage),
 			make(chan *ReportMessage),
 		},
@@ -144,67 +150,35 @@ func (b *Bot) KickoffFailureLogs(file_used string, failures chan *ReportMessage)
 	}
 }
 
-// Adjacency list implementation
+func (b *Bot) KickoffOpptyLogs(file_used string, opptys chan *OpptyMessage) {
+	f, err := os.OpenFile(file_used, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 
-// TODO: Function that looks at reserves (in terms of tokenAddress) that are changing and if we want that to be starting path
-// Maybe need to hardcode WETH and WMATIC trades
-
-func FindArb(pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) {}
-
-// helper to create an array with incremental range
-func makeRange(min, max int) []int {
-	a := make([]int, max-min+1)
-	for i := range a {
-		a[i] = min + i
+	if err != nil {
+		log.Debug("come back to this")
+		return
 	}
-	return a
-}
 
-// created directed graph (used to find simple cycles)
-func BuildDirectedGraph(reserves map[common.Address]*global.PoolReserve, pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) *simple.DirectedGraph {
-	defer util.Duration(util.Track("CREATE GONUM EDGES"))
-	var wg sync.WaitGroup
-	var mu = &sync.Mutex{}
-	graph := simple.NewDirectedGraph()
+	for {
+		select {
+		case <-b.shutdown:
+			f.Close()
+			return
+		case msg := <-opptys:
+			s, err := json.MarshalIndent(msg, "", "\t")
+			if err != nil {
+				log.Error("come back to this")
+				return
+			}
 
-	// create the edges first
-	for key := range tokenHelper.TokenIdToName {
-		// log.Info("createfonum", "key", key, "value", value)
-		if graph.Node(int64(key)) == nil {
-			graph.AddNode(simple.Node(key))
+			if _, err := f.Write(s); err != nil {
+				log.Error("some error on writing to "+file_used, err)
+				f.Close()
+				return
+			}
+
+			f.WriteString("\n")
 		}
 	}
-
-	for _, pair := range pairInfos.Data.Pairs {
-		wg.Add(1)
-		go func(pair struct {
-			Address string `json:"id"`
-			Token0  struct {
-				Decimals string `json:"decimals"`
-				Address  string `json:"id"`
-				Symbol   string `json:"symbol"`
-			} `json:"token0"`
-			Token1 struct {
-				Decimals string `json:"decimals"`
-				Address  string `json:"id"`
-				Symbol   string `json:"symbol"`
-			} `json:"token1"`
-		}, graph *simple.DirectedGraph) {
-			defer wg.Done()
-
-			token0Id := tokenHelper.TokenNameToId[pair.Token0.Symbol]
-			token1Id := tokenHelper.TokenNameToId[pair.Token1.Symbol]
-
-			mu.Lock()
-			defer mu.Unlock()
-			graph.SetEdge(simple.Edge{F: simple.Node(int64(token0Id)), T: simple.Node(int64(token1Id))})
-			graph.SetEdge(simple.Edge{F: simple.Node(int64(token1Id)), T: simple.Node(int64(token0Id))})
-
-		}(pair, graph)
-	}
-	wg.Wait()
-
-	return graph
 }
 
 // Run the bot
@@ -213,8 +187,10 @@ func (b *Bot) Run() (e error) {
 	// uncomment while inspecting simulation stuff
 	// gwei, _, _ := big.ParseFloat("1e9", 10, 0, big.ToNearestEven)
 
+	// kickoff log handlers (send to channel -> gets fed into json)
 	go b.KickoffFailureLogs(ESTIMATE_GAS_FAIL, b.log_update_incoming.estimate_fail_log)
 	go b.KickoffFailureLogs(REASONS_NOT_WORTH_IT, b.log_update_incoming.not_worth_it_log)
+	go b.KickoffOpptyLogs(FOUND_ARBS, b.log_update_incoming.found_arb)
 
 	g.Go(func() error {
 		interrupt := make(chan os.Signal)

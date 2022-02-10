@@ -18,4 +18,6 @@ var (
 
 	CPU_PROFILE = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	MEM_PROFILE = flag.String("memprofile", "", "write memory profile to `file`")
+
+	CONFIG_PATH = flag.String("config", "./config.yml", "path to config file")
 )

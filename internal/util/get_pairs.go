@@ -125,3 +125,5 @@ func GetAmountOut(amountIn *big.Int, reserve0 *big.Int, reserve1 *big.Int) (*big
 
 	return amountOut, nil
 }
+
+func GetAmountsOut(amountIn *big.Int) {}

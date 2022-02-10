@@ -1,0 +1,13 @@
+# config.yml
+
+client:
+  ipc: 127.0.0.1
+  ws: 8080
+  timeout:
+    server: 30
+    read: 15
+    write: 10
+    idle: 5
+
+chainrunner:
+  whitelist: "whitelist.json"
