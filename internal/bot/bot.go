@@ -535,9 +535,14 @@ func (b *Bot) Run() (e error) {
 			var tokens []int64
 			tokens = append(tokens, int64(WETH), int64(MATIC))
 			// TODO: Fix me P0
-			cycles := topo.DirectedCyclesOfMaxLenContainingAnyOf(graph, 5)
 
-			log.Warn("Found cycles..", "cycles", cycles)
+			preCycles := time.Now()
+			cycles := topo.DirectedCyclesIn(graph)
+
+			postCycles := time.Since(preCycles)
+
+			log.Info("Time to find cycles", "time", postCycles, "cycles", len(cycles))
+
 			// visited := make(map[int]bool)
 			// Perform DFS on graph starting with WETH. lets see
 			// get weth token id
