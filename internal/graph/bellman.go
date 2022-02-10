@@ -8,16 +8,16 @@ import (
 
 // Graph represents a graph consisting of edges and vertices
 type Graph struct {
-	edges    []*Edge
-	vertices []int
-	tokenIdToName map[int]string //  0 -> eth, 1 -> wbtc
+	edges              []*Edge
+	vertices           []int
+	TokenIdToName      map[int]string            //  0 -> eth, 1 -> wbtc
 	tokenNameToAddress map[string]common.Address // eth -> 0xabc, wbtc -> 0xbtc
-	tokenNameToId map[string]int
+	TokenNameToId      map[string]int
 }
 
 // get token name given an id
-func (g *Graph) GetTokenName(id int) string{
-	return g.tokenIdToName[id]
+func (g *Graph) GetTokenName(id int) string {
+	return g.TokenIdToName[id]
 }
 
 // get token address given symbol
@@ -26,7 +26,7 @@ func (g *Graph) GetTokenAddr(name string) common.Address {
 }
 
 func (g *Graph) GetTokenId(name string) int {
-	return g.tokenNameToId[name]
+	return g.TokenNameToId[name]
 }
 
 // var infinity = new(big.Float).SetInf(true)
@@ -51,11 +51,11 @@ func NewGraph(
 	nameToId map[string]int) *Graph {
 
 	return &Graph{
-		edges: edges,
-		vertices: vertices,
-		tokenIdToName: idToName,
+		edges:              edges,
+		vertices:           vertices,
+		TokenIdToName:      idToName,
 		tokenNameToAddress: nameToAddr,
-		tokenNameToId: nameToId,
+		TokenNameToId:      nameToId,
 	}
 }
 
@@ -74,7 +74,7 @@ func (g *Graph) BellmanFord(source int) ([]int, []*big.Float) {
 	distances := make([]*big.Float, size)
 	predecessors := make([]int, size)
 
-    // 0, 1, 2, ...
+	// 0, 1, 2, ...
 	for _, v := range g.vertices {
 		distances[v] = new(big.Float).SetInf(false)
 	}

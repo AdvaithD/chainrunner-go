@@ -83,9 +83,9 @@ func makeRange(min, max int) []int {
 }
 
 // Get reserves, pairs, pairInfos
-// create tokenIdToName mapping
-// create tokenNameToId mapping
-// tokenToAddr mapping
+// create TokenIdToName mapping
+// create TokenNameToId mapping
+// TokenToAddr mapping
 // edges variable to store all edges
 // verticed to store all vertices
 // for each pair
@@ -129,11 +129,11 @@ func main() {
 	logger.Printf("reserves: %v  pairs: %v \n", len(reserves), len(pairs))
 
 	// id -> 'token name' mapping
-	tokenIdToName := make(map[int]string)
+	TokenIdToName := make(map[int]string)
 	// name -> id
-	tokenNameToId := make(map[string]int)
+	TokenNameToId := make(map[string]int)
 	// pair name -> address
-	tokenToAddr := make(map[string]common.Address)
+	TokenToAddr := make(map[string]common.Address)
 
 	// bellman edges
 	var edges []*graph.Edge
@@ -143,7 +143,7 @@ func main() {
 	// loop over pairs
 	now := time.Now()
 
-	logger.Printf("tokenToName has %v\n", len(tokenToAddr))
+	logger.Printf("tokenToName has %v\n", len(TokenToAddr))
 	logger.Printf("pairs user were %v\n", len(pairs))
 
 	// create necessary token mappings (id to symbol, symbol to addr)
@@ -155,36 +155,36 @@ func main() {
 	for _, pair := range pairInfos.Data.Pairs {
 		// int -> symbol & symbol -> int
 		// symbol -> id
-		_, ok := tokenNameToId[pair.Token0.Symbol]
+		_, ok := TokenNameToId[pair.Token0.Symbol]
 		if !ok {
-			tokenIdToName[index] = pair.Token0.Symbol
-			tokenNameToId[pair.Token0.Symbol] = index
+			TokenIdToName[index] = pair.Token0.Symbol
+			TokenNameToId[pair.Token0.Symbol] = index
 			index++
 		}
 
 		// symbol -> id
-		_, notexis := tokenNameToId[pair.Token1.Symbol]
+		_, notexis := TokenNameToId[pair.Token1.Symbol]
 		if !notexis {
-			tokenIdToName[index] = pair.Token1.Symbol
-			tokenNameToId[pair.Token1.Symbol] = index
+			TokenIdToName[index] = pair.Token1.Symbol
+			TokenNameToId[pair.Token1.Symbol] = index
 			index++
 		}
 
 		// symbol1 -> addr
-		_, exists := tokenToAddr[pair.Token0.Symbol]
+		_, exists := TokenToAddr[pair.Token0.Symbol]
 		if !exists {
-			tokenToAddr[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
+			TokenToAddr[pair.Token0.Symbol] = common.HexToAddress(pair.Token0.Address)
 		}
 
 		// symbol2 -> addr
-		_, err := tokenToAddr[pair.Token0.Symbol]
+		_, err := TokenToAddr[pair.Token0.Symbol]
 		if !err {
-			tokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
+			TokenToAddr[pair.Token1.Symbol] = common.HexToAddress(pair.Token1.Address)
 		}
 	}
 
 	// vertices start from 0, 1,2, 3,....
-	vertices = makeRange(0, len(tokenIdToName)-1)
+	vertices = makeRange(0, len(TokenIdToName)-1)
 	fmt.Println("util mapping creation time: ", time.Since(utiltime))
 	// for each pair, create edges for all the pairs that we have
 	for key, pair := range pairInfos.Data.Pairs {
@@ -228,26 +228,26 @@ func main() {
 		p1_neg_log.Mul(p1_neg_log, neg_one)
 
 		// create two quotes
-		firstEdge := graph.NewEdge(tokenNameToId[pair.Token0.Symbol], tokenNameToId[pair.Token1.Symbol], p0_neg_log)
-		secondEdge := graph.NewEdge(tokenNameToId[pair.Token1.Symbol], tokenNameToId[pair.Token0.Symbol], p1_neg_log)
+		firstEdge := graph.NewEdge(TokenNameToId[pair.Token0.Symbol], TokenNameToId[pair.Token1.Symbol], p0_neg_log)
+		secondEdge := graph.NewEdge(TokenNameToId[pair.Token1.Symbol], TokenNameToId[pair.Token0.Symbol], p1_neg_log)
 
 		edges = append(edges, firstEdge, secondEdge)
 	}
 
 	fmt.Printf("[Create Edges]: Took %v to create edges for %v pairs \n", time.Since(now), len(pairs))
-	fmt.Printf("[EDGE] Edge Count: %v, vertices: %v tokenToName: %v\n", len(edges), len(vertices), len(tokenToAddr))
-	fmt.Printf("[EDGE] tokenIdToName: %v, tokenNameToId: %v, tokenToName: %v\n", len(tokenIdToName), len(tokenNameToId), len(tokenToAddr))
-	// fmt.Printf("[EDGE] TokenNameToId: %+v \n", tokenNameToId)
+	fmt.Printf("[EDGE] Edge Count: %v, vertices: %v tokenToName: %v\n", len(edges), len(vertices), len(TokenToAddr))
+	fmt.Printf("[EDGE] TokenIdToName: %v, TokenNameToId: %v, tokenToName: %v\n", len(TokenIdToName), len(TokenNameToId), len(TokenToAddr))
+	// fmt.Printf("[EDGE] TokenNameToId: %+v \n", TokenNameToId)
 
 	// PRINT VALUES FOR MAPPINGS
-	// fmt.Println("tokenIdToName: ", tjokenIdToName)
-	// fmt.Println("tokenNameToId: ", tokenNameToId)
+	// fmt.Println("TokenIdToName: ", tjokenIdToName)
+	// fmt.Println("TokenNameToId: ", TokenNameToId)
 	// fmt.Println("tokenToName: ", tokenToName)
 
 	inputTokens := []string{"WETH", "USDT", "WBTC", "USDC"}
 
 	for _, token := range inputTokens {
-		arber := graph.NewGraph(edges, vertices, tokenIdToName, tokenToAddr, tokenNameToId)
+		arber := graph.NewGraph(edges, vertices, TokenIdToName, TokenToAddr, TokenNameToId)
 		fmt.Println("token routes for: ", token)
 		tokenId := arber.GetTokenId(token)
 		fmt.Println("id: ", tokenId)
