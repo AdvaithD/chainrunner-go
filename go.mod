@@ -20,7 +20,6 @@ require (
 	golang.org/x/exp v0.0.0-20220209042442-160e291fcf24 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gonum.org/v1/gonum v0.0.0-unpublished
-
 )
 
 replace (
