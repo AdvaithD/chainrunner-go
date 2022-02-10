@@ -20,6 +20,8 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/syndtr/goleveldb/leveldb"
 	"golang.org/x/sync/errgroup"
+	"gonum.org/v1/gonum/graph/simple"
+	"gonum.org/v1/gonum/graph/topo"
 )
 
 var (
@@ -310,14 +312,20 @@ func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.Uniswa
 func FindArb(pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) {
 }
 
-func DFS(g *AdjGraph, source int, visited map[int]bool, tokenHelper *util.TokenHelper, firstRun bool, cycleNodeId int) {
+func DFS(g *AdjGraph, source int, visited map[int]bool, tokenHelper *util.TokenHelper, firstRun bool) {
 	if firstRun {
 		defer util.Duration(util.Track("DFS"))
 	}
 	// if we already visit the node
 	if visited[source] {
 		// if source is weth (note that source has already been visited before)
-		if source == cycleNodeId {
+		// get weth id
+		wethId, err := tokenHelper.GetTokenId("WETH")
+		if err != nil {
+			log.Error("Unable to find weth id")
+		}
+
+		if source == wethId {
 			log.Debug("DFS Algorithm: Found a path", "source", source)
 			log.Warn("Path Logger", "path", "path")
 			return
@@ -333,6 +341,62 @@ func DFS(g *AdjGraph, source int, visited map[int]bool, tokenHelper *util.TokenH
 	}
 
 	visited[source] = false
+}
+
+// helper to create an array with incremental range
+func makeRange(min, max int) []int {
+	a := make([]int, max-min+1)
+	for i := range a {
+		a[i] = min + i
+	}
+	return a
+}
+
+// created directed graph (used to find simple cycles)
+func CreateGonumGraphEdge(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) *simple.DirectedGraph {
+	defer util.Duration(util.Track("CREATE GONUM EDGES"))
+	var wg sync.WaitGroup
+	var mu = &sync.Mutex{}
+	graph := simple.NewDirectedGraph()
+
+	// create the edges first
+	for key := range tokenHelper.TokenIdToName {
+		// log.Info("createfonum", "key", key, "value", value)
+		if graph.Node(int64(key)) == nil {
+			graph.AddNode(simple.Node(key))
+		}
+	}
+
+	for _, pair := range pairInfos.Data.Pairs {
+		wg.Add(1)
+		go func(pair struct {
+			Address string `json:"id"`
+			Token0  struct {
+				Decimals string `json:"decimals"`
+				Address  string `json:"id"`
+				Symbol   string `json:"symbol"`
+			} `json:"token0"`
+			Token1 struct {
+				Decimals string `json:"decimals"`
+				Address  string `json:"id"`
+				Symbol   string `json:"symbol"`
+			} `json:"token1"`
+		}, graph *simple.DirectedGraph) {
+			defer wg.Done()
+
+			token0Id := tokenHelper.TokenNameToId[pair.Token0.Symbol]
+			token1Id := tokenHelper.TokenNameToId[pair.Token1.Symbol]
+
+			mu.Lock()
+			defer mu.Unlock()
+			graph.SetEdge(simple.Edge{F: simple.Node(int64(token0Id)), T: simple.Node(int64(token1Id))})
+			graph.SetEdge(simple.Edge{F: simple.Node(int64(token1Id)), T: simple.Node(int64(token0Id))})
+
+		}(pair, graph)
+	}
+	wg.Wait()
+
+	return graph
 }
 
 // Run the bot
@@ -455,28 +519,31 @@ func (b *Bot) Run() (e error) {
 			// instead of calling CreateEdges() I'm trying the github analysis repo's method
 			// create graph using adjacency list
 			//  IterateAndGetPaths(reserves, pairInfos, tokenHelper, "WETH", "WETH", 5, []string, [][]string)
-			grap := CreateEdges(reserves, pairInfos, tokenHelper)
 
-			// get adjacency list
+			// testing gonum stuff
+			graph := CreateGonumGraphEdge(reserves, pairInfos, tokenHelper)
 
-			// Get node id's for two tokens (WETH and MATIC)
-			// Note: These serve as initial starting points for arbs on polygon
-			// TODO: Expand initial tokens for arb to others later
 			WETH, found := tokenHelper.TokenNameToId["WETH"]
 			if !found {
 				log.Info("unable to find token id", "token", "WETH")
 			}
-			// WMATIC, found := tokenHelper.TokenNameToId["MATIC"]
-			// if !found {
-			// 	log.Info("unable to find token id", "token", "MATIC")
-			// }
+			MATIC, found := tokenHelper.TokenNameToId["MATIC"]
+			if !found {
+				log.Info("unable to find token id", "token", "MATIC")
+			}
 
-			visited := make(map[int]bool)
+			var tokens []int64
+			tokens = append(tokens, int64(WETH), int64(MATIC))
+			// TODO: Fix me P0
+			cycles := topo.DirectedCyclesOfMaxLenContainingAnyOf(graph, 5)
+
+			log.Warn("Found cycles..", "cycles", cycles)
+			// visited := make(map[int]bool)
 			// Perform DFS on graph starting with WETH. lets see
 			// get weth token id
 			// params: graph, initial token id, visited, tokenHelper
 
-			DFS(grap, WETH, visited, tokenHelper, true)
+			// DFS(grap, WETH, visited, tokenHelper, true)
 
 			// log.Info("Got edges", "count", len(edges))
 			log.Info("Finished loop")
