@@ -1,20 +1,18 @@
 package bot
 
 import (
+	"chainrunner/internal/global"
+	"chainrunner/internal/graph"
 	"chainrunner/internal/util"
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
-	"math/big"
 	"os"
 	"os/signal"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/ALTree/bigfloat"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	log "github.com/inconshreveable/log15"
@@ -22,16 +20,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gonum.org/v1/gonum/graph/simple"
 	"gonum.org/v1/gonum/graph/topo"
-)
-
-var (
-	ten       = new(big.Int).SetInt64(10)
-	zero      = new(big.Int).SetInt64(0)
-	neg_one   = new(big.Float).SetFloat64(-1)
-	inf       = new(big.Float).SetInf(true)
-	repl_mode = flag.Bool(
-		"repl_mode", false, "repl mode to inspect DB",
-	)
 )
 
 const (
@@ -156,192 +144,12 @@ func (b *Bot) KickoffFailureLogs(file_used string, failures chan *ReportMessage)
 	}
 }
 
-type PoolReserve struct {
-	reserve0 *big.Int
-	reserve1 *big.Int
-}
-
-func (p *PoolReserve) IncreaseR0(amount *big.Int) {
-	newReserve := new(big.Int)
-	newReserve.Add(p.reserve0, amount)
-	p.reserve0 = newReserve
-}
-
-func (p *PoolReserve) DecreaseR0(amount *big.Int) {
-	newReserve := new(big.Int)
-	newReserve.Sub(p.reserve0, amount)
-	p.reserve0 = newReserve
-}
-
-func (p *PoolReserve) IncreaseR1(amount *big.Int) {
-	newReserve := new(big.Int)
-	newReserve.Add(p.reserve0, amount)
-	p.reserve0 = newReserve
-}
-
-func (p *PoolReserve) DecreaseR1(amount *big.Int) {
-	newReserve := new(big.Int)
-	newReserve.Sub(p.reserve0, amount)
-	p.reserve0 = newReserve
-}
-
 // Adjacency list implementation
-type AdjGraph struct {
-	vertices int
-	adgeList [][]int
-	weights  map[int]map[int]*big.Float
-}
-
-func GetAdjGraph(vertices int) *AdjGraph {
-	var me *AdjGraph = &AdjGraph{}
-	me.vertices = vertices
-	me.adgeList = make([][]int, vertices)
-	me.weights = make(map[int]map[int]*big.Float)
-	for i := 0; i < me.vertices; i++ {
-		me.adgeList = append(me.adgeList)
-	}
-	return me
-}
-
-func (this *AdjGraph) addEdge(u, v int, w *big.Float) {
-	if u < 0 || u >= this.vertices || v < 0 || v >= this.vertices {
-		return
-	}
-	// add node edge
-	this.adgeList[u] = append(this.adgeList[u], v)
-	// add node weight
-	if this.weights[u][v] == nil {
-		this.weights[u] = make(map[int]*big.Float)
-		this.weights[u][v] = w
-	}
-}
-func (this *AdjGraph) printGraph() {
-	fmt.Print("\n Graph Adjacency List ")
-	for i := 0; i < this.vertices; i++ {
-		fmt.Print(" \n [", i, "] :")
-		// iterate edges of i node
-		for j := 0; j < len(this.adgeList[i]); j++ {
-			fmt.Print("  ", this.adgeList[i][j])
-		}
-	}
-}
 
 // TODO: Function that looks at reserves (in terms of tokenAddress) that are changing and if we want that to be starting path
 // Maybe need to hardcode WETH and WMATIC trades
 
-// Creates edges given reserves and pairs
-func CreateEdges(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) *AdjGraph {
-	var wg sync.WaitGroup
-	var mu = &sync.Mutex{}
-	defer util.Duration(util.Track("CreateEdges-300"))
-	log.Info("Creating edges")
-
-	graph := GetAdjGraph(len(tokenHelper.TokenNameToId))
-
-	for _, pair := range pairInfos.Data.Pairs {
-		wg.Add(1)
-		go func(pair struct {
-			Address string `json:"id"`
-			Token0  struct {
-				Decimals string `json:"decimals"`
-				Address  string `json:"id"`
-				Symbol   string `json:"symbol"`
-			} `json:"token0"`
-			Token1 struct {
-				Decimals string `json:"decimals"`
-				Address  string `json:"id"`
-				Symbol   string `json:"symbol"`
-			} `json:"token1"`
-		}, graphWrapper *AdjGraph) {
-			defer wg.Done()
-			reserve0 := reserves[common.HexToAddress(pair.Address)].reserve0
-			reserve1 := reserves[common.HexToAddress(pair.Address)].reserve1
-
-			token0Decimals, err := strconv.ParseInt(pair.Token0.Decimals, 10, 64)
-			if err != nil {
-				fmt.Println("comeback")
-			}
-
-			token1Decimals, err := strconv.ParseInt(pair.Token1.Decimals, 10, 64)
-			if err != nil {
-				fmt.Println("comeback")
-			}
-
-			one_token0 := new(big.Int).Exp(ten, big.NewInt(token0Decimals), nil)
-			one_token1 := new(big.Int).Exp(ten, big.NewInt(token1Decimals), nil)
-
-			price_0_to_1, err := util.GetAmountOut(one_token0, reserve0, reserve1)
-			if err != nil {
-				fmt.Println("comeback")
-			}
-
-			price_1_to_0, err := util.GetAmountOut(one_token1, reserve1, reserve0)
-			if err != nil {
-				fmt.Println("comeback")
-			}
-
-			// applying negative log
-			p0 := new(big.Float).SetInt(price_0_to_1)
-			p0.Quo(p0, new(big.Float).SetInt(one_token1))
-
-			p1 := new(big.Float).SetInt(price_1_to_0)
-			p1.Quo(p1, new(big.Float).SetInt(one_token0))
-
-			p0_neg_log := bigfloat.Log(p0)
-			p0_neg_log.Mul(p0_neg_log, neg_one)
-
-			p1_neg_log := bigfloat.Log(p1)
-			p1_neg_log.Mul(p1_neg_log, neg_one)
-
-			// create two quotes (u, v, w) two vertices by names and w is weigth
-			token0Id := tokenHelper.TokenNameToId[pair.Token0.Symbol]
-			token1Id := tokenHelper.TokenNameToId[pair.Token1.Symbol]
-
-			mu.Lock()
-
-			graph.addEdge(token0Id, token1Id, p0_neg_log)
-			graph.addEdge(token1Id, token0Id, p1_neg_log)
-
-			mu.Unlock()
-		}(pair, graph)
-	}
-	wg.Wait()
-	return graph
-}
-
-func FindArb(pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) {
-}
-
-func DFS(g *AdjGraph, source int, visited map[int]bool, tokenHelper *util.TokenHelper, firstRun bool) {
-	if firstRun {
-		defer util.Duration(util.Track("DFS"))
-	}
-	// if we already visit the node
-	if visited[source] {
-		// if source is weth (note that source has already been visited before)
-		// get weth id
-		wethId, err := tokenHelper.GetTokenId("WETH")
-		if err != nil {
-			log.Error("Unable to find weth id")
-		}
-
-		if source == wethId {
-			log.Debug("DFS Algorithm: Found a path", "source", source)
-			log.Warn("Path Logger", "path", "path")
-			return
-		}
-	}
-
-	// set current node to visited
-	visited[source] = true
-
-	// loop over each node 'source' is connected to
-	for _, fromSourceToNode := range g.adgeList[source] {
-		DFS(g, fromSourceToNode, visited, tokenHelper, false)
-	}
-
-	visited[source] = false
-}
+func FindArb(pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) {}
 
 // helper to create an array with incremental range
 func makeRange(min, max int) []int {
@@ -353,7 +161,7 @@ func makeRange(min, max int) []int {
 }
 
 // created directed graph (used to find simple cycles)
-func CreateGonumGraphEdge(reserves map[common.Address]*PoolReserve, pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) *simple.DirectedGraph {
+func BuildDirectedGraph(reserves map[common.Address]*global.PoolReserve, pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) *simple.DirectedGraph {
 	defer util.Duration(util.Track("CREATE GONUM EDGES"))
 	var wg sync.WaitGroup
 	var mu = &sync.Mutex{}
@@ -491,7 +299,7 @@ func (b *Bot) Run() (e error) {
 			log.Info("Simulation", "simulation length", len(simulation))
 
 			// create reserves mapping (address -> reserve)
-			reserves := make(map[common.Address]*PoolReserve)
+			reserves := make(map[common.Address]*global.PoolReserve)
 
 			// Below we 'process' the simulation
 			// TODO: We need to store backrunnable shit here somewhere
@@ -503,16 +311,16 @@ func (b *Bot) Run() (e error) {
 					// log.Info("Overriding pool", "address", poolAddress)
 					fmt.Println(val)
 					for _, simulatedReserves := range val {
-						reserves[poolAddress] = &PoolReserve{
-							reserve0: simulatedReserves[0].Reserve0,
-							reserve1: simulatedReserves[0].Reserve1,
+						reserves[poolAddress] = &global.PoolReserve{
+							Reserve0: simulatedReserves[0].Reserve0,
+							Reserve1: simulatedReserves[0].Reserve1,
 						}
 					}
 				}
 				res0, res1 := util.DeriveReservesFromSlot(rawReserve.String())
-				reserves[poolAddress] = &PoolReserve{
-					reserve0: res0,
-					reserve1: res1,
+				reserves[poolAddress] = &global.PoolReserve{
+					Reserve0: res0,
+					Reserve1: res1,
 				}
 			}
 
@@ -521,7 +329,7 @@ func (b *Bot) Run() (e error) {
 			//  IterateAndGetPaths(reserves, pairInfos, tokenHelper, "WETH", "WETH", 5, []string, [][]string)
 
 			// testing gonum stuff
-			graph := CreateGonumGraphEdge(reserves, pairInfos, tokenHelper)
+			graph := graph.BuildDirectedGraph(reserves, pairInfos, tokenHelper)
 
 			// manually getting token id's
 			WETH, found := tokenHelper.TokenNameToId["WETH"]
