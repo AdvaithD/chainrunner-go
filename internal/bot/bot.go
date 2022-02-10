@@ -537,7 +537,7 @@ func (b *Bot) Run() (e error) {
 			// TODO: Fix me P0
 
 			preCycles := time.Now()
-			cycles := topo.DirectedCyclesIn(graph)
+			cycles := topo.DirectedCyclesOfMaxLenContainingAnyOf(graph, 4, tokens)
 
 			postCycles := time.Since(preCycles)
 
