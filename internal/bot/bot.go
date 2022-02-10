@@ -500,7 +500,7 @@ func (b *Bot) Run() (e error) {
 			for poolAddress, rawReserve := range res {
 				// if pairs + simulation are mergable (i.e: simulation on one of the pairs the bot supports)
 				if val, ok := simulation[poolAddress]; ok {
-					log.Info("Overriding pool", "address", poolAddress)
+					// log.Info("Overriding pool", "address", poolAddress)
 					fmt.Println(val)
 					for _, simulatedReserves := range val {
 						reserves[poolAddress] = &PoolReserve{
@@ -523,6 +523,7 @@ func (b *Bot) Run() (e error) {
 			// testing gonum stuff
 			graph := CreateGonumGraphEdge(reserves, pairInfos, tokenHelper)
 
+			// manually getting token id's
 			WETH, found := tokenHelper.TokenNameToId["WETH"]
 			if !found {
 				log.Info("unable to find token id", "token", "WETH")
@@ -537,7 +538,7 @@ func (b *Bot) Run() (e error) {
 			// TODO: Fix me P0
 
 			preCycles := time.Now()
-			cycles := topo.DirectedCyclesIn(graph)
+			cycles := topo.DirectedCyclesOfMaxLenContainingAnyOf(graph, 5, tokens)
 
 			postCycles := time.Since(preCycles)
 
