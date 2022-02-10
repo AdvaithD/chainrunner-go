@@ -3,18 +3,17 @@ package util
 import (
 	"time"
 
-	logger "github.com/sirupsen/logrus"
+	log "github.com/inconshreveable/log15"
 )
 
 // Track function execution time
 // e.g: defer util.Duration(util.Track("foo"))
 // the above goes at top of function
 
-
 func Track(msg string) (string, time.Time) {
-    return msg, time.Now()
+	return msg, time.Now()
 }
 
 func Duration(msg string, start time.Time) {
-    logger.Printf("%v ---- %v\n", msg, time.Since(start))
+	log.Info("OP Completed execution", "target", msg, "time", time.Since(start))
 }
