@@ -26,6 +26,8 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20220207234003-57398862261d // indirect
 	golang.org/x/text v0.3.7 // indirect
+	gonum.org/v1/gonum v0.0.0-local
 )
 
 replace github.com/ethereum/go-ethereum v0.0.0-local => /home/bot/geth-storageat/
+replace gonum.org/v1/gonum v0.0.0-local => /home/bot/gonum
