@@ -44,7 +44,7 @@ type ReportMessage struct {
 type OpptyMessage struct {
 	path          []string
 	triggeringTxn string
-	When          time.Time // When an oppportunity was found. can compare this with triggeringTxn's delta (to be collected on node later)
+	When          time.Time // When an oppportunity was found. can compare this with triggeringTxn's delta (to be collected on node later) for peer QoS analysis
 	ArgsUsed      interface{}
 	Extra         interface{}
 }
@@ -55,6 +55,7 @@ type report_logs struct {
 	not_worth_it_log  chan *ReportMessage
 }
 
+// Core bot struct
 type Bot struct {
 	db                  *leveldb.DB
 	clients             clients
@@ -62,6 +63,7 @@ type Bot struct {
 	log_update_incoming report_logs
 }
 
+// Creates new Bot
 func NewBot(db_path, client_path string) (*Bot, error) {
 	client, err := ethclient.Dial(client_path)
 
@@ -264,15 +266,17 @@ func (b *Bot) Run() (e error) {
 
 			log.Info("Reserves", "Got pairs", len(res))
 
+                        beforeSimulate := time.Now()
 			// 2 - Get simulation
 			simulation, err := b.clients.otherwise.SimulateMempool(context.Background(), 5000)
+                        
 
 			if err != nil {
 				log.Error("error simulating mempool", "error", err)
 				panic("exiting")
 			}
 
-			log.Info("Simulation", "simulation length", len(simulation))
+			log.Info("Simulation", "simulation took", time.Since(beforeSimulate))
 
 			// create reserves mapping (address -> reserve)
 			reserves := make(map[common.Address]*global.PoolReserve)
@@ -312,7 +316,7 @@ func (b *Bot) Run() (e error) {
 			if !found {
 				log.Info("unable to find token id", "token", "WETH")
 			}
-			MATIC, found := tokenHelper.TokenNameToId["MATIC"]
+			MATIC, found := tokenHelper.TokenNameToId["WMATIC"]
 			if !found {
 				log.Info("unable to find token id", "token", "MATIC")
 			}
@@ -328,14 +332,6 @@ func (b *Bot) Run() (e error) {
 
 			log.Info("Time to find cycles", "time", postCycles, "cycles", len(cycles))
 
-			// visited := make(map[int]bool)
-			// Perform DFS on graph starting with WETH. lets see
-			// get weth token id
-			// params: graph, initial token id, visited, tokenHelper
-
-			// DFS(grap, WETH, visited, tokenHelper, true)
-
-			// log.Info("Got edges", "count", len(edges))
 			log.Info("Finished loop")
 
 			// LOOP END

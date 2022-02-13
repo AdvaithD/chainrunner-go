@@ -10,7 +10,9 @@ require (
 	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/inconshreveable/log15 v0.0.0-20201112154412-8562bdadbbac
+	github.com/jmoiron/sqlx v1.3.4 // indirect
 	github.com/joho/godotenv v1.4.0
+	github.com/mattn/go-sqlite3 v1.14.11 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/rjeczalik/notify v0.9.2 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
@@ -27,7 +29,7 @@ require (
 )
 
 replace (
-	github.com/ethereum/go-ethereum v0.0.0-local => /home/bot/geth-storageat/
+	github.com/ethereum/go-ethereum v0.0.0-local => /home/bot/bor-fork-simulate/
 	gonum.org/v1/gonum v0.0.0-local => /home/bot/gonum-fork/
-	gonum.org/v1/gonum v0.8.2 => ../../gonum-fork/
+	gonum.org/v1/gonum v0.8.2 => /home/bot/gonum-fork/
 )

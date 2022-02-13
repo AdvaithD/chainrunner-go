@@ -26,7 +26,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	bot, err := bot.NewBot(*flags.DB_PATH, *flags.DEFAULT_CLIENT)
+	bot, err := bot.NewBot(*flags.DB_PATH, *flags.BOR_CLIENT)
 
 	if err != nil {
 		log.Print("something wrong with making a new bot ", err)

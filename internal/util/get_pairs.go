@@ -70,11 +70,14 @@ func GetUniswapPairs() (UniswapPairs, error) {
       }`,
 	}
 	jsonValue, _ := json.Marshal(jsonData)
-	request, err := http.NewRequest("POST", "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2", bytes.NewBuffer(jsonValue))
+
+        request, err := http.NewRequest("POST", "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap06", bytes.NewBuffer(jsonValue))
+        // request, err := http.NewRequest("POST", "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2", bytes.NewBuffer(jsonValue))
 
 	if err != nil {
 		log.Fatalf("error requesting graphql data", err)
 	}
+
 	client := &http.Client{Timeout: time.Second * 10}
 	response, err := client.Do(request)
 	defer response.Body.Close()

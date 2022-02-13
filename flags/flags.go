@@ -8,6 +8,10 @@ var (
 		"client_dial", "/home/bot/.ethereum/geth.ipc", "could be websocket or IPC",
 	)
 
+	BOR_CLIENT = flag.String(
+		"bor_ipc", "/home/bot/.bor/data/bor.ipc", "could be websocket or IPC",
+	)
+
 	ENABLE_PPROF = flag.Bool("pprof", false, "pprof profiling")
 
 	DB_PATH = flag.String(
