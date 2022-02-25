@@ -129,4 +129,5 @@ func GetAmountOut(amountIn *big.Int, reserve0 *big.Int, reserve1 *big.Int) (*big
 	return amountOut, nil
 }
 
-func GetAmountsOut(amountIn *big.Int) {}
+// returns amounts in each hop of the trade, using the reserves mapping
+func GetAmountsOut(amountIn *big.Int, path []common.Address, reserves map[common.Address]PoolReserve) ([]*big.Int, error) {}

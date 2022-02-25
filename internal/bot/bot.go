@@ -259,6 +259,8 @@ func (b *Bot) Run() (e error) {
 			// 1 - Get reserves
 			res, err := b.clients.primary.GetReservesSlots(context.Background(), addresses, nil)
 
+                        log.Info("Time to get reserves", "clock", time.Since(start))
+
 			if err != nil {
 				log.Error("ERROR Getting reserves", "error", err)
 				panic("exiting")

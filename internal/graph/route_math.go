@@ -1,4 +1,7 @@
 package graph
 
 
-// Route math calculates net profit over a route given reserves
+// Naive calulationg over a route given reserves
+func EvaluatePath(route []int, reserves map[common.Address]*globa.PoolReserve) {
+
+}

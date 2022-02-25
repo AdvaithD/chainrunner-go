@@ -11,7 +11,7 @@ import (
 
 // created directed graph (used to find simple cycles)
 func BuildDirectedGraph(reserves map[common.Address]*global.PoolReserve, pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) *simple.DirectedGraph {
-	defer util.Duration(util.Track("CREATE GONUM EDGES"))
+	defer util.Duration(util.Track("BuildDirectedGraph"))
 	var wg sync.WaitGroup
 	var mu = &sync.Mutex{}
 	graph := simple.NewDirectedGraph()
