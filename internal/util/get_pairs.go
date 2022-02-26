@@ -145,7 +145,9 @@ func GetAmountsOut(amountIn *big.Int, path []common.Address, reserves map[common
 
 	for i := len(path) - 1; i > 0; i-- {
 		// get reserves
+		amounts = append(amounts, new(big.Int).SetInt64(0))
 
 	}
 
+	return amounts, nil 
 }
