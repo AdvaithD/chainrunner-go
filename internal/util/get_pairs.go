@@ -149,5 +149,5 @@ func GetAmountsOut(amountIn *big.Int, path []common.Address, reserves map[common
 
 	}
 
-	return amounts, nil 
+	return amounts, nil
 }
