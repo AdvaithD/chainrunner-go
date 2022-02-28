@@ -131,7 +131,8 @@ func GetAmountOut(amountIn *big.Int, reserve0 *big.Int, reserve1 *big.Int) (*big
 	return amountOut, nil
 }
 
-func GetReservesFor(pair common.Address, reserves map[common.Address]global.PoolReserve)
+// Get reserves for a pair, given mapping of pairs -> reserve
+func GetReservesFor(pair common.Address, reserves map[common.Address]global.PoolReserve) {}
 
 // returns amounts in each hop of the trade, using the reserves mapping
 // TL;DR: Performs chained getAmountOut calculations
