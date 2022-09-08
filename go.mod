@@ -27,17 +27,3 @@ require (
 	gonum.org/v1/gonum v0.8.2
 	gonum.org/v1/plot v0.9.0 // indirect
 )
-
-<<<<<<< Updated upstream
-replace (
-	github.com/ethereum/go-ethereum v0.0.0-local => /home/bot/bor-fork-simulate/
-	gonum.org/v1/gonum v0.0.0-local => /home/bot/gonum-fork/
-	gonum.org/v1/gonum v0.8.2 => /home/bot/gonum-fork/
-)
-=======
-//replace (
-//	github.com/ethereum/go-ethereum v0.0.0-local => /home/bot/geth-storageat/
-//	gonum.org/v1/gonum v0.0.0-local => /home/bot/gonum-fork/
-//	gonum.org/v1/gonum v0.8.2 => ../../gonum-fork/
-//)
->>>>>>> Stashed changes
