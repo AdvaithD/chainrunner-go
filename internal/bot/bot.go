@@ -20,9 +20,9 @@ import (
 )
 
 const (
-	ESTIMATE_GAS_FAIL    = "estimate_gas_fail.json"
-	FOUND_ARBS           = "found_arbs.json"
-	REASONS_NOT_WORTH_IT = "not_worth.json"
+	ESTIMATE_GAS_FAIL    = "./data/estimate_gas_fail.json"
+	FOUND_ARBS           = "./data/found_arbs.json"
+	REASONS_NOT_WORTH_IT = "./data/not_worth.json"
 )
 
 // Multiple clients held inside the Bot struct
