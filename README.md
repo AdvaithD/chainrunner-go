@@ -11,16 +11,4 @@
 
 - for each pair in pairinfos we apply them to TokenIdToName TokenNameToId and TokenToAddr mappings
 
-## Snippets
 
-- Code to inspect simulation data (reserves for now)
-
-```
-   // Code that inspects simulation data
-   for address, gasReserveMap := range res {
-    for gasPrice, reserves := range gasReserveMap {
-     log.Info("Possible Backrun", "Address", address, "Gas Price", new(big.Float).Quo(new(big.Float).SetUint64(uint64(gasPrice)), gwei), "Reserve", reserves) // "Reserve0", reserve0Float, "Reserve1", reserve1Float)
-     log.Info("Possible Backrun", "Gas Price", new(big.Float).Quo(new(big.Float).SetUint64(uint64(gasPrice)), gwei), "Reserve", reserves) // "Reserve0", reserve0Float, "Reserve1", reserve1Float)
-    }
-   }
-```
