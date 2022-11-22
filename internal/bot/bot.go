@@ -6,10 +6,8 @@ import (
 	"chainrunner/internal/util"
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -18,7 +16,6 @@ import (
 	log "github.com/inconshreveable/log15"
 	"github.com/syndtr/goleveldb/leveldb"
 	"golang.org/x/sync/errgroup"
-	"gonum.org/v1/gonum/graph/simple"
 	"gonum.org/v1/gonum/graph/topo"
 )
 
@@ -28,6 +25,7 @@ const (
 	REASONS_NOT_WORTH_IT = "not_worth.json"
 )
 
+// Multiple clients held inside the Bot struct
 type clients struct {
 	primary   *ethclient.Client
 	uniswap   *ethclient.Client
@@ -35,6 +33,7 @@ type clients struct {
 	otherwise *ethclient.Client
 }
 
+// Message containing - error, role, when, args used and an extra field
 type ReportMessage struct {
 	Error    error
 	Role     string
@@ -43,12 +42,23 @@ type ReportMessage struct {
 	Extra    interface{}
 }
 
+// (@dry-run) log an opportunity
+type OpptyMessage struct {
+	path          []string
+	triggeringTxn string
+	When          time.Time // When an oppportunity was found. can compare this with triggeringTxn's delta (to be collected on node later) for peer QoS analysis
+	ArgsUsed      interface{}
+	Extra         interface{}
+}
+
+// struct containing log channels (which pickup chan msgs -> write to file)
 type report_logs struct {
-	found_arb         chan *ReportMessage
+	found_arb         chan *OpptyMessage
 	estimate_fail_log chan *ReportMessage
 	not_worth_it_log  chan *ReportMessage
 }
 
+// Core bot struct
 type Bot struct {
 	db                  *leveldb.DB
 	clients             clients
@@ -56,6 +66,7 @@ type Bot struct {
 	log_update_incoming report_logs
 }
 
+// Creates new Bot
 func NewBot(db_path, client_path string) (*Bot, error) {
 	client, err := ethclient.Dial(client_path)
 
@@ -95,7 +106,7 @@ func NewBot(db_path, client_path string) (*Bot, error) {
 			otherwise: client,
 		},
 		log_update_incoming: report_logs{
-			make(chan *ReportMessage),
+			make(chan *OpptyMessage),
 			make(chan *ReportMessage),
 			make(chan *ReportMessage),
 		},
@@ -104,6 +115,7 @@ func NewBot(db_path, client_path string) (*Bot, error) {
 	}, nil
 }
 
+// Gracefully shutdown bot (close 4 clients, leveldb)
 func (b *Bot) CloseResources() error {
 	b.clients.primary.Close()
 	b.clients.otherwise.Close()
@@ -113,6 +125,8 @@ func (b *Bot) CloseResources() error {
 	return b.db.Close()
 }
 
+// Kickoff  failure logs for a specific file, and message type
+// Takes messages from a channel and write to a file
 func (b *Bot) KickoffFailureLogs(file_used string, failures chan *ReportMessage) {
 	f, err := os.OpenFile(file_used, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 
@@ -144,67 +158,36 @@ func (b *Bot) KickoffFailureLogs(file_used string, failures chan *ReportMessage)
 	}
 }
 
-// Adjacency list implementation
+// Kickoff opportunity logs
+func (b *Bot) KickoffOpptyLogs(file_used string, opptys chan *OpptyMessage) {
+	f, err := os.OpenFile(file_used, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 
-// TODO: Function that looks at reserves (in terms of tokenAddress) that are changing and if we want that to be starting path
-// Maybe need to hardcode WETH and WMATIC trades
-
-func FindArb(pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) {}
-
-// helper to create an array with incremental range
-func makeRange(min, max int) []int {
-	a := make([]int, max-min+1)
-	for i := range a {
-		a[i] = min + i
+	if err != nil {
+		log.Debug("come back to this")
+		return
 	}
-	return a
-}
 
-// created directed graph (used to find simple cycles)
-func BuildDirectedGraph(reserves map[common.Address]*global.PoolReserve, pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) *simple.DirectedGraph {
-	defer util.Duration(util.Track("CREATE GONUM EDGES"))
-	var wg sync.WaitGroup
-	var mu = &sync.Mutex{}
-	graph := simple.NewDirectedGraph()
+	for {
+		select {
+		case <-b.shutdown:
+			f.Close()
+			return
+		case msg := <-opptys:
+			s, err := json.MarshalIndent(msg, "", "\t")
+			if err != nil {
+				log.Error("come back to this")
+				return
+			}
 
-	// create the edges first
-	for key := range tokenHelper.TokenIdToName {
-		// log.Info("createfonum", "key", key, "value", value)
-		if graph.Node(int64(key)) == nil {
-			graph.AddNode(simple.Node(key))
+			if _, err := f.Write(s); err != nil {
+				log.Error("some error on writing to "+file_used, err)
+				f.Close()
+				return
+			}
+
+			f.WriteString("\n")
 		}
 	}
-
-	for _, pair := range pairInfos.Data.Pairs {
-		wg.Add(1)
-		go func(pair struct {
-			Address string `json:"id"`
-			Token0  struct {
-				Decimals string `json:"decimals"`
-				Address  string `json:"id"`
-				Symbol   string `json:"symbol"`
-			} `json:"token0"`
-			Token1 struct {
-				Decimals string `json:"decimals"`
-				Address  string `json:"id"`
-				Symbol   string `json:"symbol"`
-			} `json:"token1"`
-		}, graph *simple.DirectedGraph) {
-			defer wg.Done()
-
-			token0Id := tokenHelper.TokenNameToId[pair.Token0.Symbol]
-			token1Id := tokenHelper.TokenNameToId[pair.Token1.Symbol]
-
-			mu.Lock()
-			defer mu.Unlock()
-			graph.SetEdge(simple.Edge{F: simple.Node(int64(token0Id)), T: simple.Node(int64(token1Id))})
-			graph.SetEdge(simple.Edge{F: simple.Node(int64(token1Id)), T: simple.Node(int64(token0Id))})
-
-		}(pair, graph)
-	}
-	wg.Wait()
-
-	return graph
 }
 
 // Run the bot
@@ -213,9 +196,12 @@ func (b *Bot) Run() (e error) {
 	// uncomment while inspecting simulation stuff
 	// gwei, _, _ := big.ParseFloat("1e9", 10, 0, big.ToNearestEven)
 
+	// kickoff log handlers (send to channel -> gets fed into json)
 	go b.KickoffFailureLogs(ESTIMATE_GAS_FAIL, b.log_update_incoming.estimate_fail_log)
 	go b.KickoffFailureLogs(REASONS_NOT_WORTH_IT, b.log_update_incoming.not_worth_it_log)
+	go b.KickoffOpptyLogs(FOUND_ARBS, b.log_update_incoming.found_arb)
 
+	// handle interrupts
 	g.Go(func() error {
 		interrupt := make(chan os.Signal)
 		defer signal.Stop(interrupt)
@@ -229,9 +215,13 @@ func (b *Bot) Run() (e error) {
 
 	// start here
 	g.Go(func() error {
+
+		// ======== SETUP ============ //
 		// Create token helper struct
 		tokenHelper := util.NewTokenHelper()
+		// TODO: Replace with whitelist db / json file
 		addresses, pairInfos := util.GetDemoPairs(b.clients.primary)
+		// tokens start with index 0
 		index := 0
 
 		// create unique indexes / id for tokens and populate tokenHelper struct
@@ -270,24 +260,43 @@ func (b *Bot) Run() (e error) {
 		log.Info("Number of Tokens", "TokenNameToId", len(tokenHelper.TokenNameToId))
 
 		// loop analytics
-		i := float64(0)
-		avg := float64(0)
+		i := float64(0)   // iteration count
+		avg := float64(0) // average time
 
+		// build graph
+		// testing gonum stuff
+		graph := graph.BuildDirectedGraph(pairInfos, tokenHelper)
+
+		// manually getting token id's
+		WETH, found := tokenHelper.TokenNameToId["WETH"]
+		if !found {
+			log.Info("unable to find token id", "token", "WETH")
+		}
+		MATIC, found := tokenHelper.TokenNameToId["WMATIC"]
+		if !found {
+			log.Info("unable to find token id", "token", "MATIC")
+		}
+
+		// tokens we care about
+		var tokens []int64
+		tokens = append(tokens, int64(WETH), int64(MATIC))
+
+		// ============== EVENT LOOP ============== //
 		for {
 			// LOOP START
 			start := time.Now()
-			// get reserves slots
 
 			// 1 - Get reserves
 			res, err := b.clients.primary.GetReservesSlots(context.Background(), addresses, nil)
+
+			log.Info("Time to get reserves", "clock", time.Since(start), "pairs", len(res))
 
 			if err != nil {
 				log.Error("ERROR Getting reserves", "error", err)
 				panic("exiting")
 			}
 
-			log.Info("Reserves", "Got pairs", len(res))
-
+			beforeSimulate := time.Now()
 			// 2 - Get simulation
 			simulation, err := b.clients.otherwise.SimulateMempool(context.Background(), 5000)
 
@@ -296,7 +305,7 @@ func (b *Bot) Run() (e error) {
 				panic("exiting")
 			}
 
-			log.Info("Simulation", "simulation length", len(simulation))
+			log.Info("Simulation", "clock", time.Since(beforeSimulate), "#ofPairs", len(simulation))
 
 			// create reserves mapping (address -> reserve)
 			reserves := make(map[common.Address]*global.PoolReserve)
@@ -304,12 +313,12 @@ func (b *Bot) Run() (e error) {
 			// Below we 'process' the simulation
 			// TODO: We need to store backrunnable shit here somewhere
 
-			// for each  pool address in the simulated data
+			// for each  pool address in the reserves (one whole loop around pairs is quite a lot tho)
 			for poolAddress, rawReserve := range res {
 				// if pairs + simulation are mergable (i.e: simulation on one of the pairs the bot supports)
 				if val, ok := simulation[poolAddress]; ok {
 					// log.Info("Overriding pool", "address", poolAddress)
-					fmt.Println(val)
+					// fmt.Println(val)
 					for _, simulatedReserves := range val {
 						reserves[poolAddress] = &global.PoolReserve{
 							Reserve0: simulatedReserves[0].Reserve0,
@@ -324,50 +333,19 @@ func (b *Bot) Run() (e error) {
 				}
 			}
 
-			// instead of calling CreateEdges() I'm trying the github analysis repo's method
-			// create graph using adjacency list
-			//  IterateAndGetPaths(reserves, pairInfos, tokenHelper, "WETH", "WETH", 5, []string, [][]string)
-
-			// testing gonum stuff
-			graph := graph.BuildDirectedGraph(reserves, pairInfos, tokenHelper)
-
-			// manually getting token id's
-			WETH, found := tokenHelper.TokenNameToId["WETH"]
-			if !found {
-				log.Info("unable to find token id", "token", "WETH")
-			}
-			MATIC, found := tokenHelper.TokenNameToId["MATIC"]
-			if !found {
-				log.Info("unable to find token id", "token", "MATIC")
-			}
-
-			var tokens []int64
-			tokens = append(tokens, int64(WETH), int64(MATIC))
-			// TODO: Fix me P0
-
 			preCycles := time.Now()
 			cycles := topo.DirectedCyclesOfMaxLenContainingAnyOf(graph, 5, tokens)
-
 			postCycles := time.Since(preCycles)
 
 			log.Info("Time to find cycles", "time", postCycles, "cycles", len(cycles))
-
-			// visited := make(map[int]bool)
-			// Perform DFS on graph starting with WETH. lets see
-			// get weth token id
-			// params: graph, initial token id, visited, tokenHelper
-
-			// DFS(grap, WETH, visited, tokenHelper, true)
-
-			// log.Info("Got edges", "count", len(edges))
-			log.Info("Finished loop")
+			log.Info("Cycles", "cycles", cycles)
 
 			// LOOP END
 			elapsed := time.Since(start)
-			log.Info("Time Elapsed", "iteration", elapsed)
+			log.Info("Finished event loop", "clock", elapsed)
 			i++
 			avg = avg*(i-1)/i + elapsed.Seconds()*1/i
-			log.Info("Time Elapsed", "average", avg)
+			log.Info("Chainrunner statistics", "average", avg)
 			log.Info("---------------------------------------")
 		}
 

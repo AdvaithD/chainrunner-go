@@ -1,17 +1,15 @@
 package graph
 
 import (
-	"chainrunner/internal/global"
 	"chainrunner/internal/util"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
 	"gonum.org/v1/gonum/graph/simple"
 )
 
 // created directed graph (used to find simple cycles)
-func BuildDirectedGraph(reserves map[common.Address]*global.PoolReserve, pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) *simple.DirectedGraph {
-	defer util.Duration(util.Track("CREATE GONUM EDGES"))
+func BuildDirectedGraph(pairInfos util.UniswapPairs, tokenHelper *util.TokenHelper) *simple.DirectedGraph {
+	defer util.Duration(util.Track("BuildDirectedGraph"))
 	var wg sync.WaitGroup
 	var mu = &sync.Mutex{}
 	graph := simple.NewDirectedGraph()

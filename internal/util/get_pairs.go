@@ -2,7 +2,9 @@ package util
 
 import (
 	"bytes"
+	"chainrunner/internal/global"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -70,11 +72,14 @@ func GetUniswapPairs() (UniswapPairs, error) {
       }`,
 	}
 	jsonValue, _ := json.Marshal(jsonData)
-	request, err := http.NewRequest("POST", "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2", bytes.NewBuffer(jsonValue))
+
+	request, err := http.NewRequest("POST", "https://api.thegraph.com/subgraphs/name/sameepsi/quickswap06", bytes.NewBuffer(jsonValue))
+	// request, err := http.NewRequest("POST", "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2", bytes.NewBuffer(jsonValue))
 
 	if err != nil {
 		log.Fatalf("error requesting graphql data", err)
 	}
+
 	client := &http.Client{Timeout: time.Second * 10}
 	response, err := client.Do(request)
 	defer response.Body.Close()
@@ -124,4 +129,26 @@ func GetAmountOut(amountIn *big.Int, reserve0 *big.Int, reserve1 *big.Int) (*big
 	amountOut = numerator.Div(numerator, denominator)
 
 	return amountOut, nil
+}
+
+// Get reserves for a pair, given mapping of pairs -> reserve
+func GetReservesFor(pair common.Address, reserves map[common.Address]global.PoolReserve) {}
+
+// returns amounts in each hop of the trade, using the reserves mapping
+// TL;DR: Performs chained getAmountOut calculations
+func GetAmountsOut(amountIn *big.Int, path []common.Address, reserves map[common.Address]global.PoolReserve) ([]*big.Int, error) {
+	if len(path) < 2 {
+		return nil, errors.New("path too small bru")
+	}
+
+	amounts := make([]*big.Int, len(path))
+	amounts[0] = amountIn
+
+	for i := len(path) - 1; i > 0; i-- {
+		// get reserves
+		amounts = append(amounts, new(big.Int).SetInt64(0))
+
+	}
+
+	return amounts, nil
 }
